@@ -131,6 +131,26 @@ export class DrizzleWalletRepo implements WalletRepo {
     );
     return rows[0] ? rowToEntry(rows[0]) : null;
   }
+
+  /** 注销：删钱包；账本 user_id 去标识留存（财务记录不关联个人） */
+  async deleteByUser(userId: string): Promise<{ walletDeleted: boolean; ledgerAnonymized: number }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const anon = await client.query<{ user_id: string }>(
+        "UPDATE ledger_entries SET user_id = 'deleted:' || $1, reason = reason WHERE user_id = $1 RETURNING id",
+        [userId],
+      );
+      const del = await client.query("DELETE FROM wallets WHERE user_id = $1", [userId]);
+      await client.query("COMMIT");
+      return { walletDeleted: (del.rowCount ?? 0) > 0, ledgerAnonymized: anon.rowCount ?? 0 };
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 interface UserRow {
@@ -198,5 +218,9 @@ export class DrizzleUserRepo implements UserRepo {
       "UPDATE users SET display_name = $2, target_lang = $3, password_hash = $4, password_salt = $5 WHERE id = $1",
       [user.id, user.nickname, user.targetLang, user.passwordHash, user.passwordSalt],
     );
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.pool.query("DELETE FROM users WHERE id = $1", [id]);
   }
 }

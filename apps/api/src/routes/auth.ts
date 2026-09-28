@@ -133,6 +133,29 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     await app.auth.logout(bearerOf(req));
     return { ok: true };
   });
+
+  // 注销账号：级联删除会话/复盘/生词/钱包；账本去标识留存（财务记录不关联个人）。
+  // 语音/音频数据后端从不落盘（流式处理即弃），无可删项。
+  app.delete("/me", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req) => {
+    const userId = req.userId as string;
+    const wallet = await app.accountDeletion.walletRepo.deleteByUser(userId);
+    const sessions = await app.accountDeletion.conversationRepo.deleteByUser(userId);
+    const reviews = await app.accountDeletion.reviewRepo.deleteByUser(userId);
+    const cards = await app.accountDeletion.vocabRepo.deleteByUser(userId);
+    await app.accountDeletion.userRepo.delete(userId);
+    const revokedTokens = app.auth.revokeAllForUser(userId);
+    return {
+      ok: true,
+      deleted: {
+        conversations: sessions,
+        reviews,
+        vocabCards: cards,
+        walletDeleted: wallet.walletDeleted,
+        ledgerAnonymized: wallet.ledgerAnonymized,
+        revokedTokens,
+      },
+    };
+  });
 };
 
 function bearerOf(req: FastifyRequest): string {

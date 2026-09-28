@@ -49,6 +49,8 @@ export interface WalletRepo {
   /** 最新在前 */
   listEntries(userId: string, limit?: number): Promise<LedgerEntry[]>;
   findByIdempotencyKey(key: string): Promise<LedgerEntry | null>;
+  /** 注销账号：删除钱包；账本去标识留存（财务记录不关联个人） */
+  deleteByUser(userId: string): Promise<{ walletDeleted: boolean; ledgerAnonymized: number }>;
 }
 
 export class MemoryWalletRepo implements WalletRepo {
@@ -96,5 +98,12 @@ export class MemoryWalletRepo implements WalletRepo {
 
   async findByIdempotencyKey(key: string): Promise<LedgerEntry | null> {
     return this.byIdem.get(key) ?? null;
+  }
+
+  /** 内存实现（开发/测试）：直接删除。PG 生产实现做账本去标识留存 */
+  async deleteByUser(userId: string): Promise<{ walletDeleted: boolean; ledgerAnonymized: number }> {
+    const had = this.balances.delete(userId);
+    this.entries.delete(userId);
+    return { walletDeleted: had, ledgerAnonymized: 0 };
   }
 }

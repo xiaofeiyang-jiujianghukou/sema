@@ -34,6 +34,17 @@ export interface UserRepo {
   get(id: string): Promise<UserAccount | null>;
   findByPhone(phone: string): Promise<UserAccount | null>;
   save(user: UserAccount): Promise<void>;
+  /** 注销账号：删除用户记录 */
+  delete(id: string): Promise<void>;
+}
+
+/** 注销账号时级联删除的数据源 */
+export interface AccountDeletionRepos {
+  conversationRepo: { deleteByUser(userId: string): Promise<number> };
+  reviewRepo: { deleteByUser(userId: string): Promise<number> };
+  vocabRepo: { deleteByUser(userId: string): Promise<number> };
+  walletRepo: { deleteByUser(userId: string): Promise<{ walletDeleted: boolean; ledgerAnonymized: number }> };
+  userRepo: UserRepo;
 }
 
 export class MemoryUserRepo implements UserRepo {
@@ -48,6 +59,10 @@ export class MemoryUserRepo implements UserRepo {
 
   async get(id: string): Promise<UserAccount | null> {
     return this.users.get(id) ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.users.delete(id);
   }
 
   async findByPhone(phone: string): Promise<UserAccount | null> {
@@ -240,6 +255,18 @@ export class AuthService {
   }
 
   /** 鉴权中间件用：令牌 → userId（过期即无效） */
+  /** 注销账号：撤销该用户全部会话令牌 */
+  revokeAllForUser(userId: string): number {
+    let n = 0;
+    for (const [token, session] of this.sessions) {
+      if (session.userId === userId) {
+        this.sessions.delete(token);
+        n += 1;
+      }
+    }
+    return n;
+  }
+
   userIdOf(token: string): string {
     const session = this.sessions.get(token);
     if (!session || this.deps.now() > session.expiresAtMs) {

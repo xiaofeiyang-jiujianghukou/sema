@@ -101,6 +101,31 @@ describe("认证：注册 / 密码登录 / 验证码登录 / 会话", () => {
     await app.close();
   });
 
+  it("注销账号：级联删除 + 令牌全撤销 + 账本去标识", async () => {
+    const app = await buildApp(appOpts());
+    const user = await createTestUser(app);
+    await app.inject({ method: "POST", url: `/v1/wallet/grant?userId=${user.userId}`, payload: { cents: 3000, reason: "注册" } });
+    await app.inject({ method: "POST", url: "/v1/vocab", headers: authed(user.token), payload: { term: "hello", translation: "你好" } });
+    const started = await app.inject({ method: "POST", url: "/v1/conversations", headers: authed(user.token), payload: { scenarioId: "coffee-order" } });
+    expect(started.statusCode).toBe(201);
+
+    const del = await app.inject({ method: "DELETE", url: "/v1/auth/me", headers: authed(user.token) });
+    expect(del.statusCode).toBe(200);
+    const body = del.json() as { deleted: { conversations: number; vocabCards: number; revokedTokens: number } };
+    expect(body.deleted.conversations).toBe(1);
+    expect(body.deleted.vocabCards).toBe(1);
+    expect(body.deleted.revokedTokens).toBeGreaterThanOrEqual(1);
+
+    // 会话令牌全失效
+    const me = await app.inject({ method: "GET", url: "/v1/auth/me", headers: authed(user.token) });
+    expect(me.statusCode).toBe(401);
+    // 用户已不存在：重新登录密码失败
+    const login = await app.inject({ method: "POST", url: "/v1/auth/login", payload: { phone: user.phone, password: "Passw0rd!test" } });
+    expect(login.statusCode).toBe(400);
+    expect((login.json() as { error: string }).error).toBe("USER_NOT_FOUND");
+    await app.close();
+  });
+
   it("未登录访问业务路由 → 401；伪造令牌 → 401", async () => {
     const app = await buildApp(appOpts());
 

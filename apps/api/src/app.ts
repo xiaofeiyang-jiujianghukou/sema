@@ -21,7 +21,7 @@ import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
-import { AuthService, MemoryUserRepo, ConsoleSmsSender, type SmsSender } from "./modules/auth/service.js";
+import { AuthService, MemoryUserRepo, ConsoleSmsSender, type AccountDeletionRepos, type SmsSender } from "./modules/auth/service.js";
 import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
@@ -38,6 +38,7 @@ import { walletRoutes } from "./routes/wallet.js";
 declare module "fastify" {
   interface FastifyInstance {
     wallets: WalletService;
+    accountDeletion: AccountDeletionRepos;
     conversations: ConversationService;
     reviews: ReviewService;
     vocabBook: VocabBookService;
@@ -169,6 +170,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("vocabBook", vocabBook);
   app.decorate("stats", new StatsService(conversationRepo, reviewRepo, vocabBook, { now: clock }));
 
+  app.decorate("accountDeletion", {
+    conversationRepo,
+    reviewRepo,
+    vocabRepo,
+    walletRepo,
+    userRepo,
+  } satisfies AccountDeletionRepos);
   app.decorate("auth", new AuthService({
     users: userRepo,
     sms: options.smsSender ?? new ConsoleSmsSender(),

@@ -67,6 +67,8 @@ export interface ReviewRepo {
   save(review: SessionReview): Promise<void>;
   getBySession(sessionId: string): Promise<SessionReview | null>;
   listByUser(userId: string): Promise<SessionReview[]>;
+  /** 注销账号：删除该用户全部复盘报告 */
+  deleteByUser(userId: string): Promise<number>;
 }
 
 export class MemoryReviewRepo implements ReviewRepo {
@@ -76,6 +78,18 @@ export class MemoryReviewRepo implements ReviewRepo {
   async save(review: SessionReview): Promise<void> {
     this.byId.set(review.id, review);
     this.bySession.set(review.sessionId, review.id);
+  }
+
+  async deleteByUser(userId: string): Promise<number> {
+    let n = 0;
+    for (const [id, r] of this.byId) {
+      if (r.userId === userId) {
+        this.byId.delete(id);
+        this.bySession.delete(r.sessionId);
+        n += 1;
+      }
+    }
+    return n;
   }
 
   async getBySession(sessionId: string): Promise<SessionReview | null> {
@@ -173,6 +187,10 @@ export class ReviewService {
 
   async getBySession(sessionId: string): Promise<SessionReview | null> {
     return this.reviews.getBySession(sessionId);
+  }
+
+  async deleteByUser(userId: string): Promise<number> {
+    return this.reviews.deleteByUser(userId);
   }
 
   async listByUser(userId: string): Promise<SessionReview[]> {

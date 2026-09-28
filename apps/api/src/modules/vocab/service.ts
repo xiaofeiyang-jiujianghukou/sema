@@ -46,6 +46,8 @@ export interface VocabRepo {
   save(card: VocabCard): Promise<void>;
   findByTerm(userId: string, term: string): Promise<VocabCard | null>;
   listByUser(userId: string): Promise<VocabCard[]>;
+  /** 注销账号：删除该用户全部生词卡 */
+  deleteByUser(userId: string): Promise<number>;
 }
 
 export class MemoryVocabRepo implements VocabRepo {
@@ -76,6 +78,17 @@ export class MemoryVocabRepo implements VocabRepo {
     return [...this.cards.values()]
       .filter((c) => c.userId === userId)
       .sort((a, b) => a.dueMs - b.dueMs);
+  }
+
+  async deleteByUser(userId: string): Promise<number> {
+    let n = 0;
+    for (const [id, c] of this.cards) {
+      if (c.userId === userId) {
+        this.cards.delete(id);
+        n += 1;
+      }
+    }
+    return n;
   }
 }
 

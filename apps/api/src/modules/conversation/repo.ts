@@ -34,6 +34,8 @@ export interface ConversationRepo {
   save(session: ConversationSession): Promise<void>;
   /** 用户全部会话（学习档案统计用，按开始时间升序） */
   listByUser(userId: string): Promise<ConversationSession[]>;
+  /** 注销账号：删除该用户全部会话（含对话历史） */
+  deleteByUser(userId: string): Promise<number>;
 }
 
 export class MemoryConversationRepo implements ConversationRepo {
@@ -58,5 +60,16 @@ export class MemoryConversationRepo implements ConversationRepo {
     return [...this.sessions.values()]
       .filter((s) => s.userId === userId)
       .sort((a, b) => a.startedAtMs - b.startedAtMs);
+  }
+
+  async deleteByUser(userId: string): Promise<number> {
+    let n = 0;
+    for (const [id, s] of this.sessions) {
+      if (s.userId === userId) {
+        this.sessions.delete(id);
+        n += 1;
+      }
+    }
+    return n;
   }
 }

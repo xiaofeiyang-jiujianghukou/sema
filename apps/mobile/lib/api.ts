@@ -150,6 +150,9 @@ export const auth = {
   loginCode: (phone: string, code: string) =>
     request<{ token: string; user: PublicUser }>("/v1/auth/login", { method: "POST", body: JSON.stringify({ phone, code }) }),
   me: (token: string) => request<PublicUser>("/v1/auth/me", { token }),
+  /** 注销账号：级联删除数据，不可恢复 */
+  deleteAccount: (token: string) =>
+    request<{ ok: boolean; deleted: Record<string, number> }>("/v1/auth/me", { method: "DELETE", token }),
   logout: (token: string) => request<{ ok: boolean }>("/v1/auth/logout", { method: "POST", token }),
 };
 

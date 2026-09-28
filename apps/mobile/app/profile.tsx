@@ -5,7 +5,7 @@ import type { JSX } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ApiError, api, type LearningProfile, type WalletInfo } from "../lib/api";
+import { ApiError, api, auth, type LearningProfile, type WalletInfo } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 export default function Profile(): JSX.Element {
@@ -43,6 +43,21 @@ export default function Profile(): JSX.Element {
         </View>
         <Pressable onPress={() => void logout().then(() => router.replace("/login"))}>
           <Text style={styles.logout}>退出登录</Text>
+        </Pressable>
+        <Pressable onPress={() => Alert.alert("注销账号", "将删除你的全部对话、复盘、生词与钱包数据，且不可恢复。确定注销吗？", [
+          { text: "取消", style: "cancel" },
+          {
+            text: "确认注销",
+            style: "destructive",
+            onPress: () => {
+              if (!token) return;
+              void auth.deleteAccount(token)
+                .then(() => logout().then(() => router.replace("/login")))
+                .catch((err: unknown) => Alert.alert("注销失败", err instanceof ApiError ? err.message : String(err)));
+            },
+          },
+        ])}>
+          <Text style={styles.danger}>注销账号</Text>
         </Pressable>
       </View>
 
@@ -101,6 +116,7 @@ const styles = StyleSheet.create({
   nickname: { color: "#f2f7fa", fontSize: 17, fontWeight: "600" },
   phone: { color: "#7d9ab0", fontSize: 13, marginTop: 2 },
   logout: { color: "#e08f8f", fontSize: 14 },
+  danger: { color: "#e08f8f", fontSize: 12, marginTop: 6 },
   balanceCard: { backgroundColor: "#0e2740", borderRadius: 14, padding: 16, gap: 6 },
   balanceLabel: { color: "#7d9ab0", fontSize: 13 },
   balance: { color: "#7ee2a8", fontSize: 34, fontWeight: "700" },

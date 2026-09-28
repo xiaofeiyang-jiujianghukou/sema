@@ -193,7 +193,40 @@ WebSocket `/v1/realtime`，双通道帧设计：
 - wallet grant/topup 保留为**开发通道**（NODE_ENV=production 不注册）；
   生产充值走微信支付回调（商户号开通后接入）
 
-### 9.2 移动端壳 · Android（Expo SDK 54 + expo-router，已落地）
+### 9.2 移动端语音（Expo Go 可行路径，已落地）
+
+- **按住说话**：expo-av 录 AAC 16k（Expo Go 的 Android 无 PCM 输出），
+  整段 base64 经 WS `audio-aac` 帧上行 → 服务端 ffmpeg 转 16k mono PCM
+  → 现有 VAD/barge-in 管线（整段上传自动补 300ms 静音尾巴出段）
+- **会话复用**：WS start 支持可选 sessionId——语音与文字共用一个会话，
+  计费与复盘不分叉；归属/状态校验（CONVERSATION_FORBIDDEN/ENDED）
+- **TTS 回放**：下行 PCM 分片攒齐 → 加 WAV 头 → expo-av 播放
+- 诚实边界：真流式（边说边转、即时 barge-in）需要 dev-client + 原生录音
+  模块（react-native-live-audio-stream 一类），是 EAS 构建后的里程碑；
+  服务端 VAD/barge-in 已就绪，届时客户端只换录音采集层
+
+### 9.3 合规：账户注销与数据删除（已落地）
+
+- `DELETE /v1/auth/me`（需登录）：级联删除对话/复盘/生词/钱包，
+  撤销全部会话令牌，删除用户记录
+- **账本去标识留存**：ledger_entries.user_id 改写为 `deleted:<id>`——
+  满足财务记录留存与个人信息删除义务的平衡（architecture §4 铁律的例外
+  规则，只改归属字段不改金额）
+- 语音音频后端从不落盘（实时流式处理即弃），无可删项
+- 移动端「我的 → 注销账号」双重确认入口
+
+### 9.4 Postgres 仓储（钱包/用户已落地，pg-mem 单测）
+
+- `DATABASE_URL` 配置后自动切换 PG 账本；缺省内存实现（开发/测试）
+- DrizzleWalletRepo：单事务 + 乐观锁（`UPDATE ... WHERE balance_cents=期望前值`，
+  影响行数 0 → BalanceConflictError 409）+ 幂等键唯一索引兜底——
+  账本铁律（余额=Σ账本）落到 SQL 层；DrizzleUserRepo：手机号唯一约束
+- 建表迁移由 drizzle-kit 生成（packages/db/drizzle/0000_*.sql），
+  运行时不依赖 ORM（pg 原生参数化 SQL）
+- **诚实边界**：pg-mem 是 SQL 逻辑模拟——部署前必须用真实 PostgreSQL
+  跑迁移与冒烟；会话表（auth sessions）仍在内存（重启掉线，MVP 可接受）
+
+### 9.5 移动端壳 · Android（Expo SDK 54 + expo-router，已落地）
 
 - `apps/mobile`：七屏（启动分流/登录注册/情景目录/文字对话/复盘报告/
   生词本/我的），深色品牌视觉
