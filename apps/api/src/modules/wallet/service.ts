@@ -4,7 +4,7 @@ import {
   priceOf,
   type ActionType,
   type CreditCents,
-} from "@yanquan/shared";
+} from "@sema/shared";
 import type { LedgerEntry, LedgerType, WalletRepo } from "./repo.js";
 
 export class InsufficientFundsError extends Error {

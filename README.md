@@ -1,10 +1,11 @@
-# 言泉 YanQuan
+# 说嘛 Sema
 
 > 一款可以终身使用的语言学习软件。**用一次，付一次；不用，不付。**
 
-「思风发于胸臆，**言泉流于唇齿**」——陆机《文赋》
+**Sema**，斯瓦希里语：「说吧！」——全球使用人数最多的非洲语言里，「开口说」就是这个音。
+**说嘛**，中文口语：「想说就说嘛」——零压力，随时来，说走就走。
 
-让每个学习者开口如泉涌。泉是水：**按取按饮**（按量付费，如水电般自然）、**细水长流**（终身学习，不求速成）、**源头活水**（每一次开口，都是一个新的开始）。
+两个名字不是翻译，是**同一个动作在两种语言里的声音**——抖音/TikTok 式的同源双生：极短、普世音素、名字即动作。我们产品的那个动作，就是开口。
 
 ## 一句话定位
 
@@ -22,15 +23,16 @@
 ## 项目结构
 
 ```
-LanguageWorkspace/
+sema/                      # 仓库根（LanguageWorkspace 下的独立项目）
 ├── apps/
-│   ├── mobile/        # Expo (React Native) —— iOS / Android，单一代码库
-│   └── api/           # Fastify —— 钱包账本、业务核心
+│   ├── mobile/            # Expo (React Native) —— iOS / Android，单一代码库
+│   └── api/               # Fastify —— 钱包账本、业务核心
 ├── packages/
-│   ├── shared/        # 类型 + 价目表（前后端同源的单一事实源）
-│   ├── db/            # PostgreSQL Schema（Drizzle ORM）
-│   └── ai-core/       # （M1）AI 抽象层：LLM/ASR/TTS 路由与成本核算
-└── docs/              # 产品蓝图 / 技术架构 / 路线图
+│   ├── shared/            # 类型 + 价目表（前后端同源的单一事实源）
+│   ├── db/                # PostgreSQL Schema（Drizzle ORM）
+│   └── ai-core/           # （M1）AI 抽象层：LLM/ASR/TTS 路由与成本核算
+├── docs/                  # 产品蓝图 / 技术架构 / 路线图 / 命名档案
+└── README.md
 ```
 
 ## 快速开始
@@ -55,7 +57,7 @@ curl -X POST localhost:8787/v1/wallet/demo/charge \
 
 ## 环境注意（本沙箱机）
 
-- `~/.local`、`~/.npm` 为只读挂载：pnpm store 与各类缓存已配置到 `/tmp`（见 `.npmrc`）；如在你自己机器上无此限制，可删除 `.npmrc` 中的 `store-dir` 行
+- `~/.local`、`~/.npm` 为只读挂载：pnpm store 与各类缓存已配置到 `/tmp`（见 `.npmrc`）；在你自己机器上如无此限制，可删除 `.npmrc` 中的 `store-dir` 行
 - 跑 pnpm 前 export 以下变量（也可写入 shell profile）：
   `export XDG_DATA_HOME=/tmp/xdg/data XDG_CACHE_HOME=/tmp/xdg/cache XDG_STATE_HOME=/tmp/xdg/state XDG_CONFIG_HOME=/tmp/xdg/config`
 - 移动端连 API：`EXPO_PUBLIC_API_URL=http://<局域网IP>:8787 pnpm dev:mobile`
@@ -75,9 +77,10 @@ curl -X POST localhost:8787/v1/wallet/demo/charge \
 | [产品蓝图](docs/product.md) | 用户、商业模式、积分定价、MVP 范围、风险 |
 | [技术架构](docs/architecture.md) | Monorepo 结构、AI 抽象层、语音链路、计费系统、数据模型 |
 | [路线图](docs/roadmap.md) | M0 → M3 里程碑与验收标准 |
+| [命名档案](docs/naming.md) | Sema 说嘛 的定名逻辑与候选淘汰记录 |
 
 ## 当前状态
 
 - **M0 骨架完成** ✅：Monorepo、积分账本核心（21 个测试全绿）、API 冒烟通过、Expo 壳
+- **定名完成** ✅：说嘛 Sema（TikTok 式双语同源命名，详见 [命名档案](docs/naming.md)）
 - **下一步（M1）**：ai-core 抽象层 + 语音对话全链路（首字 < 1.5s）+ 按分钟计费接入对话
-- 定名说明：「言泉」经检索无同品类消费产品占用（商标注册第 9/41/42 类待办）

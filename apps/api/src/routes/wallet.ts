@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { formatCredits, priceOf, type ActionType } from "@yanquan/shared";
+import { formatCredits, priceOf, type ActionType } from "@sema/shared";
 import { z } from "zod";
 import { InsufficientFundsError } from "../modules/wallet/service.js";
 

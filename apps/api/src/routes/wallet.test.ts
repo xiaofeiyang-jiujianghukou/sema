@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { SIGNUP_GRANT_CENTS } from "@yanquan/shared";
+import { SIGNUP_GRANT_CENTS } from "@sema/shared";
 import { buildApp } from "../app.js";
 
 let app: FastifyInstance;
@@ -19,7 +19,7 @@ describe("API 冒烟", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.ok).toBe(true);
-    expect(body.name).toBe("yanquan");
+    expect(body.name).toBe("sema");
   });
 
   it("钱包流：赠送 → 余额 → 消费 → 账单", async () => {

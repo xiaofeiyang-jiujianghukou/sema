@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "言泉",
-    "slug": "yanquan",
+    "name": "说嘛",
+    "slug": "sema",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "yanquan",
+    "scheme": "sema",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yanquan.app"
+      "bundleIdentifier": "com.sema.app"
     },
     "android": {
-      "package": "com.yanquan.app"
+      "package": "com.sema.app"
     }
   }
 }

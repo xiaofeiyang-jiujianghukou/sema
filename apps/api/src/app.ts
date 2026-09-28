@@ -16,7 +16,7 @@ export interface BuildAppOptions {
 }
 
 /**
- * 组装 Fastify 应用。M0 用内存仓储；Postgres 仓储（@yanquan/db + drizzle）
+ * 组装 Fastify 应用。M0 用内存仓储；Postgres 仓储（@sema/db + drizzle）
  * 在接入真实数据库时替换注入，领域逻辑不变。
  */
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {

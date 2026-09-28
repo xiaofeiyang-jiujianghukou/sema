@@ -1,5 +1,5 @@
 {
-  "name": "yanquan",
+  "name": "sema",
   "private": true,
   "packageManager": "pnpm@11.25.0",
   "engines": {
@@ -9,8 +9,8 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "dev:api": "pnpm --filter @yanquan/api dev",
-    "dev:mobile": "pnpm --filter @yanquan/mobile start"
+    "dev:api": "pnpm --filter @sema/api dev",
+    "dev:mobile": "pnpm --filter @sema/mobile start"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

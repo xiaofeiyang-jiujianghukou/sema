@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { SIGNUP_GRANT_CENTS } from "@yanquan/shared";
+import { SIGNUP_GRANT_CENTS } from "@sema/shared";
 import { MemoryWalletRepo } from "./repo.js";
 import { InsufficientFundsError, WalletService } from "./service.js";
 

@@ -1,5 +1,5 @@
 /**
- * 言泉 · 数据库 Schema（PostgreSQL / Drizzle ORM）
+ * 说嘛 · 数据库 Schema（PostgreSQL / Drizzle ORM）
  *
  * M0 范围：用户、钱包、追加式账本、价目表快照、学习会话骨架。
  * 生词/FSRS/复盘表在 M2 落地（见 docs/architecture.md §5）。
@@ -52,7 +52,7 @@ export const ledgerEntries = pgTable(
       .references(() => users.id),
     /** grant | topup | charge | refund */
     type: text("type").notNull(),
-    /** 消费动作码（charge 时有值），取值见 @yanquan/shared PRICING */
+    /** 消费动作码（charge 时有值），取值见 @sema/shared PRICING */
     actionCode: text("action_code"),
     quantity: integer("quantity"),
     /** 单价（厘），charge 时有值 */
@@ -74,7 +74,7 @@ export const ledgerEntries = pgTable(
   ],
 );
 
-/** 价目表快照：@yanquan/shared 是唯一事实源，此处存历史版本供账单追溯 */
+/** 价目表快照：@sema/shared 是唯一事实源，此处存历史版本供账单追溯 */
 export const pricingActions = pgTable("pricing_actions", {
   code: text("code").primaryKey(),
   unit: text("unit").notNull(),

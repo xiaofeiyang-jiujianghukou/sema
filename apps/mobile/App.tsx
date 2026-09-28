@@ -10,7 +10,7 @@ type HealthState =
   | { status: "down"; message: string };
 
 /**
- * 言泉 · 品牌启动屏（M0 占位）
+ * 说嘛 · 品牌启动屏（M0 占位）
  * M1 将替换为「30 秒内开口」的情景对话首页。
  */
 export default function App() {
@@ -35,9 +35,9 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      <Text style={styles.brand}>言泉</Text>
-      <Text style={styles.tagline}>言泉流于唇齿</Text>
-      <Text style={styles.slogan}>用一次，付一次 · 说到滔滔不绝</Text>
+      <Text style={styles.brand}>说嘛</Text>
+      <Text style={styles.tagline}>SEMA · 想说就说嘛</Text>
+      <Text style={styles.slogan}>用一次，付一次 · 聊到停不下来</Text>
 
       <View style={styles.healthCard}>
         <Text style={styles.healthTitle}>API 状态（{API_URL}）</Text>
