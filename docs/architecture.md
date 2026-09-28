@@ -113,16 +113,36 @@ reviews(session_id, errors[], upgrades[], new_vocab[])   # 复盘报告
 - 成本表（`MODEL_COSTS`，¥/1M tokens）为分析锚点，上线前用真实账单校准
 - mock 供应商零成本跑通全链路；配置 `SEMA_LLM_PROVIDER=openai-compat` + `SEMA_LLM_API_KEY` 即切真实模型
 
-### 7.3 实时语音传输协议（M1.5 待实施）
+### 7.3 实时语音传输协议（M1.5 已实现）
 
 WebSocket `/v1/realtime`，双通道帧设计：
 
 ```
-控制帧(JSON): { type: "start" | "turn" | "end" | "interrupt", sessionId?, scenarioId? }
-音频帧(binary): 16kHz PCM 分片（上行用户语音 / 下行 TTS 语音）
+上行控制帧(JSON): { type: "start", userId, scenarioId } | { type: "end" }
+上行音频帧(binary): 用户 PCM 16k mono s16le（任意分片，服务端内部按 20ms 帧切 VAD）
+下行事件帧(JSON): ready / user-utterance / reply-start / reply / audio-end / ended / error
+下行音频帧(binary): AI PCM 16k mono s16le（TTS 分片，可直接喂播放器）
 ```
 
-- 上行：VAD 断句 → ASR 流式 → 复用 ConversationService.turn()
-- 下行：LLM 流式 → TTS 流式分片回传
-- 打断（interrupt）：用户开口即取消当前 TTS 播放 + abort LLM 请求
-- 真机联调前置条件：选定 ASR/TTS 供应商并拿到 Key（方舟语音系暂不支持 arkcli Endpoint 创建，走控制台开通）
+- 上行：能量 VAD 断句（阈值 700 RMS，开口 160ms，静音 700ms 出段，单段上限 15s）
+  → ASR 整段识别 → 复用 ConversationService.turn()（计费/对话/成本计量与文本模式完全一致）
+- 下行：turn 回复全文 → TTS 流式分片；开场白同样以语音下发
+- Barge-in：AI 播报中用户开口即 abort TTS（AbortError 静默，不回错误帧），新语音段立即接管
+
+**方舟语音通道实测要点**（openspeech.bytedance.com，X-Api-Key 鉴权，X-Api-Resource-Id 标识资源）：
+
+| 事项 | 实测结论 |
+|---|---|
+| TTS 端点 | `/api/v3/plan/tts/unidirectional/stream`（seed-tts-2.0），单请求全量文本，流式收音频帧 |
+| TTS 音色 | 必须与 resource 匹配：`zh_female_gaolengyujie_uranus_bigtts` 可用；`*_mars_*` 报 55000000 |
+| ASR 端点 | `/api/v3/plan/sauc/bigmodel_async`（volc.seedasr.sauc.duration） |
+| ASR 配置 | **配置请求带 POS_SEQUENCE(seq=1)**，音频从 seq=2 起；schema 键是 `audio`（非 audio_config）+ `channel`（非 channels） |
+| ASR 音频 | 引擎按内容嗅探：声明 `format:"wav", codec:"raw"` 并给裸 PCM 前置 44B RIFF 头 |
+| 识别语言 | `request.language: "en-US"` 提示显著提升英文准确率（latte 不再误识别） |
+| 结果语义 | 响应为**累积快照**（全量文本），只在流结束时取终稿，不可逐帧拼接 |
+| 权益 | 需 Agent Plan 订阅 + 控制台开启抵扣，否则 401/403（`AgentPlanDeductNotEnabled`） |
+| 计费 | 套餐 AFP 抵扣，实测 5厘/秒（TTS 与 ASR 各计音频时长） |
+
+语音供应商抽象：`TTSProvider.synthesize(text, opts) → AsyncIterable<Buffer>`、
+`ASRProvider.createRecognizer() → StreamingRecognizer`；方舟适配器
+`ArkPlanTTSProvider` / `ArkPlanASRProvider`（ai-core），Mock 实现零成本开发测试。
