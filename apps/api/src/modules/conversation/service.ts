@@ -246,6 +246,11 @@ export class ConversationService {
     return -entry.amountCents;
   }
 
+  /** 用户全部会话（学习档案/导出用，按开始时间升序） */
+  async listByUser(userId: string): Promise<ConversationSession[]> {
+    return this.repo.listByUser(userId);
+  }
+
   private async mustGet(sessionId: string): Promise<ConversationSession> {
     const session = await this.repo.get(sessionId);
     if (!session) throw new ConversationNotFoundError(sessionId);

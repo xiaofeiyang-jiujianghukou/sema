@@ -32,6 +32,8 @@ export interface ConversationRepo {
   create(session: ConversationSession): Promise<void>;
   get(id: string): Promise<ConversationSession | null>;
   save(session: ConversationSession): Promise<void>;
+  /** 用户全部会话（学习档案统计用，按开始时间升序） */
+  listByUser(userId: string): Promise<ConversationSession[]>;
 }
 
 export class MemoryConversationRepo implements ConversationRepo {
@@ -50,5 +52,11 @@ export class MemoryConversationRepo implements ConversationRepo {
 
   async save(session: ConversationSession): Promise<void> {
     this.sessions.set(session.id, session);
+  }
+
+  async listByUser(userId: string): Promise<ConversationSession[]> {
+    return [...this.sessions.values()]
+      .filter((s) => s.userId === userId)
+      .sort((a, b) => a.startedAtMs - b.startedAtMs);
   }
 }

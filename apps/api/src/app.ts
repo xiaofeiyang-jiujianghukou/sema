@@ -15,18 +15,27 @@ import {
 } from "@sema/ai-core";
 import { ConversationService } from "./modules/conversation/service.js";
 import { MemoryConversationRepo } from "./modules/conversation/repo.js";
+import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
+import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
+import { StatsService } from "./modules/stats/service.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
 import { MemoryWalletRepo } from "./modules/wallet/repo.js";
 import { realtimeRoutes } from "./routes/realtime.js";
+import { reviewRoutes } from "./routes/review.js";
+import { statsRoutes } from "./routes/stats.js";
 import { conversationRoutes } from "./routes/conversations.js";
 import { healthRoutes } from "./routes/health.js";
+import { vocabRoutes } from "./routes/vocab.js";
 import { walletRoutes } from "./routes/wallet.js";
 
 declare module "fastify" {
   interface FastifyInstance {
     wallets: WalletService;
     conversations: ConversationService;
+    reviews: ReviewService;
+    vocabBook: VocabBookService;
+    stats: StatsService;
     speech: { asr: ASRProvider; tts: TTSProvider };
     vadOptions?: VADOptions;
   }
@@ -93,22 +102,41 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(cors, { origin: true });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
 
+  // 领域服务共享同一组仓储实例（M2 Postgres 化时整组替换为 @sema/db 实现）
+  const conversationRepo = new MemoryConversationRepo();
+  const reviewRepo = new MemoryReviewRepo();
+  const vocabRepo = new MemoryVocabRepo();
+  const clock = options.now ?? Date.now;
+
   app.decorate("wallets", new WalletService(new MemoryWalletRepo()));
   app.decorate(
     "conversations",
     new ConversationService(
-      new MemoryConversationRepo(),
+      conversationRepo,
       app.wallets,
       options.router ?? defaultRouter(),
-      options.now ?? Date.now,
+      clock,
     ),
   );
   app.decorate("speech", options.speech ?? defaultSpeech());
   app.decorate("vadOptions", options.vad);
 
+  const vocabBook = new VocabBookService(vocabRepo, { now: clock });
+  app.decorate("reviews", new ReviewService(reviewRepo, {
+    conversations: conversationRepo,
+    wallets: app.wallets,
+    router: options.router ?? defaultRouter(),
+    now: clock,
+  }));
+  app.decorate("vocabBook", vocabBook);
+  app.decorate("stats", new StatsService(conversationRepo, reviewRepo, vocabBook, { now: clock }));
+
   await app.register(healthRoutes);
   await app.register(walletRoutes, { prefix: "/v1/wallet" });
   await app.register(conversationRoutes, { prefix: "/v1/conversations" });
+  await app.register(reviewRoutes, { prefix: "/v1" });
+  await app.register(vocabRoutes, { prefix: "/v1" });
+  await app.register(statsRoutes, { prefix: "/v1" });
   await app.register(realtimeRoutes, { prefix: "/v1" });
 
   return app;

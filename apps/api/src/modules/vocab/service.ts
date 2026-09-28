@@ -1,0 +1,156 @@
+/**
+ * 生词本——FSRS 间隔复习
+ *
+ * 卡片来源：复盘报告自动提取 + 手动添加（按 userId+term 去重）。
+ * 调度用 @sema/shared 的 FSRS-5 封装；M2 的「生词 AI 精讲」在复习时
+ * 按词触发（vocab_lecture 10厘/词），后续接廉价模型。
+ */
+import { randomUUID } from "node:crypto";
+import { newSrsState, scheduleSrs, type SrsGrade, type SrsState } from "@sema/shared";
+import type { SessionReview } from "../review/service.js";
+
+export interface VocabCard extends SrsState {
+  id: string;
+  userId: string;
+  term: string;
+  translation: string;
+  /** 出处例句（复盘语境或手动输入） */
+  context: string | null;
+  sourceSessionId: string | null;
+  createdAtMs: number;
+  /** 复习次数（reps 的镜像，便于统计口径分离） */
+  reviewCount: number;
+}
+
+export interface VocabRepo {
+  create(card: VocabCard): Promise<void>;
+  get(id: string): Promise<VocabCard | null>;
+  save(card: VocabCard): Promise<void>;
+  findByTerm(userId: string, term: string): Promise<VocabCard | null>;
+  listByUser(userId: string): Promise<VocabCard[]>;
+}
+
+export class MemoryVocabRepo implements VocabRepo {
+  private readonly cards = new Map<string, VocabCard>();
+
+  async create(card: VocabCard): Promise<void> {
+    if (this.cards.has(card.id)) throw new Error(`卡片已存在: ${card.id}`);
+    this.cards.set(card.id, card);
+  }
+
+  async get(id: string): Promise<VocabCard | null> {
+    return this.cards.get(id) ?? null;
+  }
+
+  async save(card: VocabCard): Promise<void> {
+    this.cards.set(card.id, card);
+  }
+
+  async findByTerm(userId: string, term: string): Promise<VocabCard | null> {
+    const key = term.trim().toLowerCase();
+    for (const card of this.cards.values()) {
+      if (card.userId === userId && card.term.trim().toLowerCase() === key) return card;
+    }
+    return null;
+  }
+
+  async listByUser(userId: string): Promise<VocabCard[]> {
+    return [...this.cards.values()]
+      .filter((c) => c.userId === userId)
+      .sort((a, b) => a.dueMs - b.dueMs);
+  }
+}
+
+export class VocabCardNotFoundError extends Error {
+  readonly code = "VOCAB_CARD_NOT_FOUND";
+  constructor(readonly cardId: string) {
+    super(`生词卡不存在: ${cardId}`);
+  }
+}
+
+export interface VocabDeps {
+  now: () => number;
+}
+
+export interface GradeResult {
+  card: VocabCard;
+  /** 本次打分是否有效（提前复习有效，重复打分同一到期点会被吞掉） */
+  applied: boolean;
+}
+
+export class VocabBookService {
+  constructor(
+    private readonly repo: VocabRepo,
+    private readonly deps: VocabDeps = { now: Date.now },
+  ) {}
+
+  private now(): number {
+    return this.deps.now();
+  }
+
+  async add(input: {
+    userId: string;
+    term: string;
+    translation: string;
+    context?: string;
+    sourceSessionId?: string;
+  }): Promise<{ card: VocabCard; created: boolean }> {
+    const term = input.term.trim();
+    if (term.length === 0) throw new Error("生词不能为空");
+    const existing = await this.repo.findByTerm(input.userId, term);
+    if (existing) return { card: existing, created: false };
+
+    const card: VocabCard = {
+      id: randomUUID(),
+      userId: input.userId,
+      term,
+      translation: input.translation.trim(),
+      context: input.context?.trim() || null,
+      sourceSessionId: input.sourceSessionId ?? null,
+      createdAtMs: this.now(),
+      reviewCount: 0,
+      ...newSrsState(this.now()),
+    };
+    await this.repo.create(card);
+    return { card, created: true };
+  }
+
+  /** 复盘报告里的生词批量入本（按 term 去重） */
+  async addFromReview(review: SessionReview): Promise<{ added: number; duplicates: number }> {
+    let added = 0;
+    let duplicates = 0;
+    for (const item of review.vocab) {
+      const result = await this.add({
+        userId: review.userId,
+        term: item.term,
+        translation: item.translation,
+        context: item.contextSentence,
+        sourceSessionId: review.sessionId,
+      });
+      if (result.created) added += 1;
+      else duplicates += 1;
+    }
+    return { added, duplicates };
+  }
+
+  async list(userId: string): Promise<VocabCard[]> {
+    return this.repo.listByUser(userId);
+  }
+
+  /** 到期队列：到期时间升序（新卡 due=创建时刻，天然排最前） */
+  async due(userId: string, asOfMs?: number): Promise<VocabCard[]> {
+    const now = asOfMs ?? this.now();
+    const all = await this.repo.listByUser(userId);
+    return all.filter((c) => c.dueMs <= now);
+  }
+
+  async grade(userId: string, cardId: string, grade: SrsGrade): Promise<GradeResult> {
+    const card = await this.repo.get(cardId);
+    if (!card || card.userId !== userId) throw new VocabCardNotFoundError(cardId);
+    const now = this.now();
+    const next = scheduleSrs(card, grade, now);
+    const updated: VocabCard = { ...card, ...next, reviewCount: card.reviewCount + 1 };
+    await this.repo.save(updated);
+    return { card: updated, applied: true };
+  }
+}

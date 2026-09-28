@@ -146,3 +146,43 @@ WebSocket `/v1/realtime`，双通道帧设计：
 语音供应商抽象：`TTSProvider.synthesize(text, opts) → AsyncIterable<Buffer>`、
 `ASRProvider.createRecognizer() → StreamingRecognizer`；方舟适配器
 `ArkPlanTTSProvider` / `ArkPlanASRProvider`（ai-core），Mock 实现零成本开发测试。
+
+## 8. M2 实施记录（学习闭环，已落地领域层）
+
+### 8.1 学习闭环三件套
+
+- **复盘报告** `ReviewService`（modules/review）：会话结束后把完整转写交给
+  旗舰模型，产出结构化 JSON（纠错/更地道说法/生词/亮点与重点），zod 严格
+  校验（REVIEW_PARSE_ERROR 诚实失败不造假绿）；一次会话一份报告，幂等计费
+  （`review:sessionId`，review_report 100厘/次）。报告中的生词自动入生词本。
+- **生词本** `VocabBookService`（modules/vocab）：FSRS-5 间隔复习。调度封装在
+  `@sema/shared/src/srs.ts`（ts-fsrs 5.x，请求保留率 0.9，禁用短期学习步——
+  首次打分即入天级间隔，适合每日复习节奏）。卡片来源：复盘提取 + 手动添加，
+  按 userId+term 去重；打分 1=忘了 2=费劲 3=顺利 4=轻松；到期队列按 due 升序。
+- **学习档案** `StatsService`（modules/stats）：纯聚合视角——会话数/时长/
+  开口次数/累计消费、词汇总量与 7 天新增与到期数、连续学习天数、近 14 天
+  活动曲线；不引入新的事实来源。`GET /v1/users/:id/export` 全量导出（终身可携）。
+
+### 8.2 供应商通道矩阵（实测沉淀）
+
+| 通道 | Base URL / 端点 | Key | 计费 |
+|---|---|---|---|
+| 平台聊天 | `https://ark.cn-beijing.volces.com/api/v3` | 控制台 Key | token 后付费 |
+| Agent Plan 聊天 | `https://ark.cn-beijing.volces.com/api/plan/v3` | 套餐专属 Key | AFP 抵扣 |
+| Agent Plan 语音 | `wss://openspeech.bytedance.com/api/v3/plan/*` | 同套餐专属 Key | AFP 抵扣（5厘/秒） |
+
+注意：Coding Plan Key 与 Agent Plan Key **互不通用**（跨用即 401）；
+套餐通道模型名以 `plans model-list` 为准（如 doubao-seed-2-0-mini-260428）。
+
+### 8.3 路由一览（M2 新增）
+
+```
+POST /v1/conversations/:sessionId/review   生成复盘（幂等）+ 生词自动入本
+GET  /v1/conversations/:sessionId/review   拉取报告
+GET  /v1/vocab?userId=                     生词列表（按到期排序）
+GET  /v1/vocab/due?userId=                 到期复习队列
+POST /v1/vocab                             手动添加生词
+POST /v1/vocab/:cardId/review              打分推进 FSRS
+GET  /v1/stats/:userId                     学习档案
+GET  /v1/users/:userId/export              全量数据导出
+```
