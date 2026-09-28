@@ -9,6 +9,19 @@ import { randomUUID } from "node:crypto";
 import { newSrsState, scheduleSrs, type SrsGrade, type SrsState } from "@sema/shared";
 import type { SessionReview } from "../review/service.js";
 
+export interface VocabLecture {
+  /** 释义（含词性，中文） */
+  definition: string;
+  /** 地道例句 2-3 条 */
+  examples: Array<{ en: string; zh: string }>;
+  /** 辨析：与近义词/易混表达的区别（中文） */
+  nuance: string;
+  /** 记忆钩子：词源/联想/场景锚点（中文） */
+  memoryHook: string;
+  /** 常见搭配 */
+  collocations: string[];
+}
+
 export interface VocabCard extends SrsState {
   id: string;
   userId: string;
@@ -20,6 +33,8 @@ export interface VocabCard extends SrsState {
   createdAtMs: number;
   /** 复习次数（reps 的镜像，便于统计口径分离） */
   reviewCount: number;
+  /** AI 精讲（每词生成一次，缓存终身） */
+  lecture: VocabLecture | null;
 }
 
 export interface VocabRepo {
@@ -109,6 +124,7 @@ export class VocabBookService {
       sourceSessionId: input.sourceSessionId ?? null,
       createdAtMs: this.now(),
       reviewCount: 0,
+      lecture: null,
       ...newSrsState(this.now()),
     };
     await this.repo.create(card);

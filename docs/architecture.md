@@ -159,6 +159,10 @@ WebSocket `/v1/realtime`，双通道帧设计：
   `@sema/shared/src/srs.ts`（ts-fsrs 5.x，请求保留率 0.9，禁用短期学习步——
   首次打分即入天级间隔，适合每日复习节奏）。卡片来源：复盘提取 + 手动添加，
   按 userId+term 去重；打分 1=忘了 2=费劲 3=顺利 4=轻松；到期队列按 due 升序。
+- **生词 AI 精讲** `LectureService`（modules/vocab/lecture）：复习时按需触发，
+  廉价档模型产出释义/地道例句/近义辨析/记忆钩子/常见搭配；**每词一生成缓存
+  终身**，幂等计费 `lecture:cardId`（vocab_lecture 10厘/词），先生成后扣费
+  （解析失败不扣钱）。真实冒烟质量达标（innit 的辨析与记忆钩子可用）。
 - **学习档案** `StatsService`（modules/stats）：纯聚合视角——会话数/时长/
   开口次数/累计消费、词汇总量与 7 天新增与到期数、连续学习天数、近 14 天
   活动曲线；不引入新的事实来源。`GET /v1/users/:id/export` 全量导出（终身可携）。
@@ -183,6 +187,7 @@ GET  /v1/vocab?userId=                     生词列表（按到期排序）
 GET  /v1/vocab/due?userId=                 到期复习队列
 POST /v1/vocab                             手动添加生词
 POST /v1/vocab/:cardId/review              打分推进 FSRS
+POST /v1/vocab/:cardId/lecture             AI 精讲（每词一次，10厘/词）
 GET  /v1/stats/:userId                     学习档案
 GET  /v1/users/:userId/export              全量数据导出
 ```

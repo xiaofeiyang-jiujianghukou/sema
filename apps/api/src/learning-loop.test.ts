@@ -17,12 +17,23 @@ const REVIEW_JSON = JSON.stringify({
   overall: { level: "A2", strengths: "敢开口，基本句型可用", focus: "动词搭配与礼貌句式" },
 });
 
+const LECTURE_JSON = JSON.stringify({
+  definition: "n. 燕麦奶（植物奶的一种，咖啡店常用）",
+  examples: [
+    { en: "Could I get a latte with oat milk?", zh: "能给我来杯燕麦奶拿铁吗？" },
+    { en: "Oat milk froths really well.", zh: "燕麦奶很好打奶泡。" },
+  ],
+  nuance: "oat milk 指燕麦奶；soy milk 是豆奶，almond milk 是杏仁奶。咖啡店点单时直接说 oat milk 即可，不用加 latte。",
+  memoryHook: "oat（燕麦）+ milk（奶）——画面：一碗燕麦泡出了奶",
+  collocations: ["oat milk latte", "barista oat milk", "splash of oat milk"],
+});
+
 function mockRouter(): TaskRouter {
   const reviewProvider = new MockLLMProvider("mock-review", () => REVIEW_JSON);
   const dialogueProvider = new MockLLMProvider("mock-flagship", () => "Sure thing — anything else?");
   return new TaskRouter({
     flagship: dialogueProvider,
-    cheap: new MockLLMProvider("mock-cheap"),
+    cheap: new MockLLMProvider("mock-cheap", () => LECTURE_JSON),
     review: reviewProvider,
   });
 }
@@ -114,6 +125,52 @@ describe("学习闭环：复盘 → 生词 → 复习 → 档案", () => {
     expect(dump.sessions).toHaveLength(3);
     expect(dump.reviews).toHaveLength(2);
     expect(dump.vocab).toHaveLength(3);
+
+    await app.close();
+  });
+
+  it("生词 AI 精讲：生成计费 0.1 积分，二次命中缓存不再扣费", async () => {
+    const app = await buildApp({ router: mockRouter() });
+    await app.inject({ method: "POST", url: "/v1/wallet/learner/grant", payload: { cents: SIGNUP_GRANT_CENTS, reason: "测试" } });
+
+    // 走完对话→复盘→生词入本
+    const started = await app.inject({ method: "POST", url: "/v1/conversations", payload: { userId: "learner", scenarioId: "coffee-order" } });
+    const sessionId = (started.json() as { sessionId: string }).sessionId;
+    await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/turns`, payload: { text: "Could I get a latte with oat milk?" } });
+    await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/end` });
+    await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/review` });
+
+    const vocabRes = await app.inject({ method: "GET", url: "/v1/vocab?userId=learner" });
+    const cards = (vocabRes.json() as { cards: Array<{ id: string; term: string }> }).cards;
+    expect(cards.length).toBeGreaterThan(0);
+
+    const balanceBefore = await app.inject({ method: "GET", url: "/v1/wallet/learner" });
+    const before = Number((balanceBefore.json() as { balanceCredits: string }).balanceCredits);
+
+    // 首次精讲：生成 + 扣 10厘
+    const lectureRes = await app.inject({ method: "POST", url: `/v1/vocab/${cards[0]!.id}/lecture`, payload: { userId: "learner" } });
+    expect(lectureRes.statusCode).toBe(200);
+    const lecture = lectureRes.json() as { term: string; cached: boolean; chargedCents: number; lecture: { definition: string; examples: unknown[]; nuance: string; memoryHook: string; collocations: string[] } };
+    expect(lecture.cached).toBe(false);
+    expect(lecture.chargedCents).toBe(10);
+    expect(lecture.term).toBe(cards[0]!.term);
+    expect(lecture.lecture.examples.length).toBe(2);
+    expect(lecture.lecture.collocations).toContain("oat milk latte");
+
+    const balanceMid = await app.inject({ method: "GET", url: "/v1/wallet/learner" });
+    expect(before - Number((balanceMid.json() as { balanceCredits: string }).balanceCredits)).toBeCloseTo(0.1, 5);
+
+    // 二次精讲：缓存命中，零扣费
+    const again = await app.inject({ method: "POST", url: `/v1/vocab/${cards[0]!.id}/lecture`, payload: { userId: "learner" } });
+    const againBody = again.json() as { cached: boolean; chargedCents: number };
+    expect(againBody.cached).toBe(true);
+    expect(againBody.chargedCents).toBe(0);
+    const balanceAfter = await app.inject({ method: "GET", url: "/v1/wallet/learner" });
+    expect(before - Number((balanceAfter.json() as { balanceCredits: string }).balanceCredits)).toBeCloseTo(0.1, 5);
+
+    // 他人卡片不可精讲
+    const stranger = await app.inject({ method: "POST", url: `/v1/vocab/${cards[0]!.id}/lecture`, payload: { userId: "someone-else" } });
+    expect(stranger.statusCode).toBe(404);
 
     await app.close();
   });

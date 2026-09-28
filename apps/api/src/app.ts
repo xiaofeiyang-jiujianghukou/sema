@@ -17,6 +17,7 @@ import { ConversationService } from "./modules/conversation/service.js";
 import { MemoryConversationRepo } from "./modules/conversation/repo.js";
 import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
+import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
@@ -35,6 +36,7 @@ declare module "fastify" {
     conversations: ConversationService;
     reviews: ReviewService;
     vocabBook: VocabBookService;
+    lectures: LectureService;
     stats: StatsService;
     speech: { asr: ASRProvider; tts: TTSProvider };
     vadOptions?: VADOptions;
@@ -122,6 +124,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("vadOptions", options.vad);
 
   const vocabBook = new VocabBookService(vocabRepo, { now: clock });
+  app.decorate("lectures", new LectureService({ repo: vocabRepo, wallets: app.wallets, router: options.router ?? defaultRouter() }));
   app.decorate("reviews", new ReviewService(reviewRepo, {
     conversations: conversationRepo,
     wallets: app.wallets,

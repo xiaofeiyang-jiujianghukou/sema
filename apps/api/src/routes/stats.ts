@@ -38,6 +38,7 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
         term: c.term,
         translation: c.translation,
         context: c.context,
+        lecture: c.lecture,
         dueMs: c.dueMs,
         stability: c.stability,
         difficulty: c.difficulty,

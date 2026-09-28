@@ -43,12 +43,31 @@ async function main(): Promise<void> {
   console.log(`生词入本: +${review.vocabIngested.added}（重复 ${review.vocabIngested.duplicates}）`);
 
   const due = await app.inject({ method: "GET", url: "/v1/vocab/due?userId=smoke" });
-  console.log("到期复习队列:", (due.json() as { cards: Array<{ term: string }> }).cards.map((c) => c.term).join(", "));
+  const dueCards = (due.json() as { cards: Array<{ id: string; term: string }> }).cards;
+  console.log("到期复习队列:", dueCards.map((c) => c.term).join(", "));
+
+  // 生词 AI 精讲（廉价档真模型，10厘/词，每词一次）
+  if (dueCards.length > 0) {
+    const lectureRes = await app.inject({ method: "POST", url: `/v1/vocab/${dueCards[0]!.id}/lecture`, payload: { userId: "smoke" } });
+    if (lectureRes.statusCode !== 200) {
+      console.error(`❌ 精讲失败(${lectureRes.statusCode}):`, lectureRes.body.slice(0, 300));
+      process.exit(1);
+    }
+    const lec = lectureRes.json() as { term: string; cached: boolean; chargedCents: number; lecture: { definition: string; examples: Array<{ en: string }>; nuance: string; memoryHook: string; collocations: string[] } };
+    console.log(`\n📖 精讲「${lec.term}」（${lec.cached ? "缓存" : `新生成, ${lec.chargedCents}厘`}）`);
+    console.log(`  释义: ${lec.lecture.definition}`);
+    console.log(`  例句: ${lec.lecture.examples.map((e) => e.en).join(" / ")}`);
+    console.log(`  辨析: ${lec.lecture.nuance.slice(0, 70)}`);
+    console.log(`  钩子: ${lec.lecture.memoryHook.slice(0, 70)}`);
+    console.log(`  搭配: ${lec.lecture.collocations.join(", ")}`);
+  }
+
   const stats = await app.inject({ method: "GET", url: "/v1/stats/smoke" });
   const profile = stats.json() as { turns: number; vocab: { total: number } };
   console.log(`档案: 开口 ${profile.turns} 次, 生词 ${profile.vocab.total} 个`);
 
-  const ok = review.corrections.length > 0 && review.vocab.length > 0;
+  // 纠错允许为空——说得没错就不该编造错误；生词与总评必须存在
+  const ok = review.vocab.length > 0 && review.overall.level.length > 0;
   console.log(ok ? "✅ 真实学习闭环冒烟通过" : "❌ 报告结构不完整");
   app.close();
   process.exit(ok ? 0 : 1);
