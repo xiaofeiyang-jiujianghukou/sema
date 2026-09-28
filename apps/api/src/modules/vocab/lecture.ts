@@ -10,6 +10,7 @@ import { PRICING } from "@sema/shared";
 import type { TaskRouter } from "@sema/ai-core";
 import type { WalletService } from "../wallet/service.js";
 import { VocabCardNotFoundError, type VocabLecture, type VocabRepo } from "./service.js";
+import type { TargetLang } from "../../content/scenarios.js";
 
 export class LectureParseError extends Error {
   readonly code = "LECTURE_PARSE_ERROR";
@@ -21,7 +22,7 @@ export class LectureParseError extends Error {
 const lectureSchema = z.object({
   definition: z.string().min(1).max(300),
   examples: z.array(z.object({
-    en: z.string().min(1).max(300),
+    text: z.string().min(1).max(300),
     zh: z.string().min(1).max(300),
   })).min(2).max(4),
   nuance: z.string().min(1).max(600),
@@ -29,16 +30,24 @@ const lectureSchema = z.object({
   collocations: z.array(z.string().min(1).max(120)).min(1).max(5),
 });
 
-const LECTURE_PROMPT = `You are a vocabulary coach for Chinese learners of English.
+const LANG_LABEL: Record<TargetLang, string> = {
+  en: "English",
+  ja: "Japanese",
+  ko: "Korean",
+};
+
+function lecturePrompt(target: TargetLang): string {
+  return `You are a vocabulary coach for Chinese learners of ${LANG_LABEL[target]}.
 Given a word/phrase and its context, reply with ONLY a JSON object (no markdown, no code fence):
 {
-  "definition": "中文释义，含词性，如 n. 燕麦奶",
-  "examples": [{"en": "natural English sentence", "zh": "中文翻译"}],
+  "definition": "中文释义，含词性",
+  "examples": [{"text": "natural ${LANG_LABEL[target]} sentence", "zh": "中文翻译"}],
   "nuance": "与近义词/易混表达的区别，中文，具体到使用场景",
   "memoryHook": "记忆钩子：词根词缀/发音联想/场景画面，中文",
   "collocations": ["常见搭配1", "常见搭配2"]
 }
-Rules: examples 2-3 条且必须自然地道；nuance 说清"什么时候用这个词而不是那个词"；memoryHook 一句话但要有效。`;
+Rules: examples 2-3 条且必须是自然地道的 ${LANG_LABEL[target]}；nuance 说清"什么时候用这个词而不是那个词"；memoryHook 一句话但要有效。`;
+}
 
 export interface LectureDeps {
   repo: VocabRepo;
@@ -67,7 +76,7 @@ export class LectureService {
     const decision = this.deps.router.route("vocab");
     const result = decision.provider.chat({
       messages: [
-        { role: "system", content: LECTURE_PROMPT },
+        { role: "system", content: lecturePrompt(card.lang) },
         {
           role: "user",
           content: `Word/phrase: ${card.term}\nMeaning hint: ${card.translation}\nContext where the learner met it: ${card.context ?? "(none)"}`,

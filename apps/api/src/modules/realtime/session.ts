@@ -62,6 +62,8 @@ export class RealtimeVoiceSession {
     private readonly tts: TTSProvider,
     private readonly callbacks: RealtimeCallbacks,
     vadOptions?: VADOptions,
+    /** 语言参数：ASR 识别语言提示 + TTS 音色（按情景目标语言选择） */
+    private readonly speechOptions?: { language?: string; speaker?: string },
   ) {
     this.vad = {
       rmsThreshold: vadOptions?.rmsThreshold ?? 700,
@@ -155,6 +157,7 @@ export class RealtimeVoiceSession {
       for await (const audioChunk of this.tts.synthesize(turn.reply, {
         format: "pcm",
         sampleRate: 16_000,
+        ...(this.speechOptions?.speaker ? { speaker: this.speechOptions.speaker } : {}),
         signal: controller.signal,
       })) {
         if (controller.signal.aborted || this.closed) return;
@@ -179,7 +182,10 @@ export class RealtimeVoiceSession {
 
   /** ASR：整段音频推入识别器，取最后一个定稿（无定稿则取最后非空文本） */
   private async transcribe(segment: Buffer): Promise<string> {
-    const recognizer = this.asr.createRecognizer({ sampleRate: 16_000 });
+    const recognizer = this.asr.createRecognizer({
+      sampleRate: 16_000,
+      ...(this.speechOptions?.language ? { language: this.speechOptions.language } : {}),
+    });
     const collecting = (async () => {
       const parts: string[] = [];
       for await (const segmentResult of recognizer.results()) {

@@ -18,8 +18,12 @@ const turnSchema = z.object({
 });
 
 export const conversationRoutes: FastifyPluginAsync = async (app) => {
-  // 情景目录（静态路由优先于 :id 匹配）
-  app.get("/scenarios", async () => ({ scenarios: listScenarioSummaries() }));
+  // 情景目录（静态路由优先于 :id 匹配）；可按目标语言过滤
+  app.get("/scenarios", async (req, reply) => {
+    const queryCheck = z.object({ targetLang: z.enum(["en", "ja", "ko"]).optional() }).safeParse(req.query);
+    if (!queryCheck.success) return reply.code(400).send({ error: { code: "BAD_REQUEST", issues: queryCheck.error.issues } });
+    return { scenarios: listScenarioSummaries(queryCheck.data.targetLang) };
+  });
 
   app.post("/", async (req, reply) => {
     const parsed = startSchema.safeParse(req.body);

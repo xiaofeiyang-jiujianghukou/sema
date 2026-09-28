@@ -88,6 +88,7 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
               onError: (message) => send({ type: "error", message }),
             },
             app.vadOptions,
+            app.speechForLang(started.scenario.targetLang),
           );
           send({
             type: "ready",

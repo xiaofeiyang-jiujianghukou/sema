@@ -15,6 +15,7 @@ import {
 } from "@sema/ai-core";
 import { ConversationService } from "./modules/conversation/service.js";
 import { MemoryConversationRepo } from "./modules/conversation/repo.js";
+import { ASR_LANGUAGE } from "./content/scenarios.js";
 import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
@@ -39,6 +40,8 @@ declare module "fastify" {
     lectures: LectureService;
     stats: StatsService;
     speech: { asr: ASRProvider; tts: TTSProvider };
+    /** 目标语言 → 语音参数（ASR 语言提示 + TTS 音色） */
+    speechForLang: (lang: "en" | "ja" | "ko") => { language: string; speaker?: string };
     vadOptions?: VADOptions;
   }
 }
@@ -122,6 +125,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
   app.decorate("speech", options.speech ?? defaultSpeech());
   app.decorate("vadOptions", options.vad);
+
+  // 目标语言 → 语音参数。ASR 语言提示显著影响识别准确率；TTS 音色按
+  // SEMA_TTS_SPEAKER_EN/JA/KO 配置，未配置的语言回落默认音色（日/韩音色
+  // 待真机联调时用真实音色 ID 验证后再固化默认值）。
+  const SPEAKER_ENV: Record<"en" | "ja" | "ko", string | undefined> = {
+    en: process.env.SEMA_TTS_SPEAKER_EN ?? process.env.SEMA_TTS_SPEAKER,
+    ja: process.env.SEMA_TTS_SPEAKER_JA,
+    ko: process.env.SEMA_TTS_SPEAKER_KO,
+  };
+  app.decorate("speechForLang", (lang: "en" | "ja" | "ko") => {
+    const speaker = SPEAKER_ENV[lang];
+    return {
+      language: ASR_LANGUAGE[lang],
+      ...(speaker ? { speaker } : {}),
+    };
+  });
 
   const vocabBook = new VocabBookService(vocabRepo, { now: clock });
   app.decorate("lectures", new LectureService({ repo: vocabRepo, wallets: app.wallets, router: options.router ?? defaultRouter() }));

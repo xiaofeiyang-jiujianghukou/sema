@@ -63,6 +63,7 @@ export interface StartResult {
   sessionId: string;
   scenario: {
     id: string;
+    targetLang: Scenario["targetLang"];
     title: string;
     titleEn: string;
     emoji: string;
@@ -129,6 +130,7 @@ export class ConversationService {
       sessionId: session.id,
       scenario: {
         id: scenario.id,
+        targetLang: scenario.targetLang,
         title: scenario.title,
         titleEn: scenario.titleEn,
         emoji: scenario.emoji,

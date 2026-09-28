@@ -1,6 +1,6 @@
 /**
- * 真实学习闭环冒烟：真 LLM 对话 → 真复盘报告（结构化解析）
- * 运行：npx tsx scripts/review-real-smoke.ts
+ * 真实学习闭环冒烟：真 LLM 对话 → 真复盘报告（结构化解析）→ 真精讲
+ * 运行：npx tsx scripts/review-real-smoke.ts [scenarioId] [你说的第一句...]
  */
 import type { AddressInfo } from "node:net";
 import { loadEnvFiles } from "../src/env.js";
@@ -8,17 +8,27 @@ import { buildApp } from "../src/app.js";
 
 async function main(): Promise<void> {
   loadEnvFiles();
+  const scenarioId = process.argv[2] ?? "coffee-order";
   const app = await buildApp();
   await app.inject({ method: "POST", url: "/v1/wallet/smoke/grant", payload: { cents: 50000, reason: "复盘冒烟" } });
 
-  const started = await app.inject({ method: "POST", url: "/v1/conversations", payload: { userId: "smoke", scenarioId: "coffee-order" } });
+  const started = await app.inject({ method: "POST", url: "/v1/conversations", payload: { userId: "smoke", scenarioId } });
+  if (started.statusCode !== 201) {
+    console.error(`❌ 开会话失败(${started.statusCode}):`, started.body.slice(0, 200));
+    process.exit(1);
+  }
   const sessionId = (started.json() as { sessionId: string }).sessionId;
-  console.log("开场白:", ((started.json() as { opener: string }).opener).slice(0, 60));
+  console.log("开场白:", (started.json() as { opener: string }).opener);
 
-  for (const line of ["Hi Ben, I want a coffee please", "Sorry, I mean I would like a latte with oat milk"]) {
+  const lines = process.argv.slice(3);
+  const turnLines = lines.length > 0 ? lines : [
+    "Hi Ben, I want a coffee please",
+    "Sorry, I mean I would like a latte with oat milk",
+  ];
+  for (const line of turnLines) {
     const turn = await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/turns`, payload: { text: line } });
     const body = turn.json() as { reply?: string; error?: unknown };
-    if (body.reply) console.log(`你: ${line}\nBen: ${body.reply.slice(0, 80)}`);
+    if (body.reply) console.log(`你: ${line}\nAI: ${body.reply.slice(0, 80)}`);
     else console.log(`turn 失败(${turn.statusCode}):`, turn.body.slice(0, 160));
   }
   await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/end` });
@@ -56,7 +66,7 @@ async function main(): Promise<void> {
     const lec = lectureRes.json() as { term: string; cached: boolean; chargedCents: number; lecture: { definition: string; examples: Array<{ en: string }>; nuance: string; memoryHook: string; collocations: string[] } };
     console.log(`\n📖 精讲「${lec.term}」（${lec.cached ? "缓存" : `新生成, ${lec.chargedCents}厘`}）`);
     console.log(`  释义: ${lec.lecture.definition}`);
-    console.log(`  例句: ${lec.lecture.examples.map((e) => e.en).join(" / ")}`);
+    console.log(`  例句: ${lec.lecture.examples.map((e) => e.text).join(" / ")}`);
     console.log(`  辨析: ${lec.lecture.nuance.slice(0, 70)}`);
     console.log(`  钩子: ${lec.lecture.memoryHook.slice(0, 70)}`);
     console.log(`  搭配: ${lec.lecture.collocations.join(", ")}`);

@@ -20,8 +20,8 @@ const REVIEW_JSON = JSON.stringify({
 const LECTURE_JSON = JSON.stringify({
   definition: "n. 燕麦奶（植物奶的一种，咖啡店常用）",
   examples: [
-    { en: "Could I get a latte with oat milk?", zh: "能给我来杯燕麦奶拿铁吗？" },
-    { en: "Oat milk froths really well.", zh: "燕麦奶很好打奶泡。" },
+    { text: "Could I get a latte with oat milk?", zh: "能给我来杯燕麦奶拿铁吗？" },
+    { text: "Oat milk froths really well.", zh: "燕麦奶很好打奶泡。" },
   ],
   nuance: "oat milk 指燕麦奶；soy milk 是豆奶，almond milk 是杏仁奶。咖啡店点单时直接说 oat milk 即可，不用加 latte。",
   memoryHook: "oat（燕麦）+ milk（奶）——画面：一碗燕麦泡出了奶",

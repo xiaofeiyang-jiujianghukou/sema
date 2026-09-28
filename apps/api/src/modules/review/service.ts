@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { PRICING } from "@sema/shared";
+import { getScenario, type TargetLang } from "../../content/scenarios.js";
 import type { ConversationRepo } from "../conversation/repo.js";
 import type { WalletService } from "../wallet/service.js";
 import type { TaskRouter } from "@sema/ai-core";
@@ -89,15 +90,23 @@ export class MemoryReviewRepo implements ReviewRepo {
   }
 }
 
-const REVIEW_PROMPT = `You are an expert English coach reviewing a Chinese learner's spoken English conversation.
+const LANG_LABEL: Record<TargetLang, string> = {
+  en: "English",
+  ja: "Japanese",
+  ko: "Korean",
+};
+
+function reviewPrompt(target: TargetLang): string {
+  return `You are an expert ${LANG_LABEL[target]} coach reviewing a Chinese learner's spoken ${LANG_LABEL[target]} conversation.
 Analyze the transcript and reply with ONLY a JSON object (no markdown, no code fence) matching:
 {
-  "corrections": [{"original": "learner's flawed sentence", "corrected": "fixed sentence", "explanation": "中文解释为什么", "kind": "grammar|word-choice|naturalness"}],
-  "alternatives": [{"original": "learner's OK sentence", "suggestion": "more idiomatic version", "note": "中文说明为什么更地道"}],
+  "corrections": [{"original": "learner's flawed sentence", "corrected": "fixed sentence in natural ${LANG_LABEL[target]}", "explanation": "中文解释为什么", "kind": "grammar|word-choice|naturalness"}],
+  "alternatives": [{"original": "learner's OK sentence", "suggestion": "more idiomatic ${LANG_LABEL[target]} version", "note": "中文说明为什么更地道"}],
   "vocab": [{"term": "useful word/phrase from context", "translation": "中文释义", "contextSentence": "the sentence where it appeared"}],
-  "overall": {"level": "CEFR-ish level estimate like A2/B1", "strengths": "中文，做得好的地方", "focus": "中文，下一步最该练什么"}
+  "overall": {"level": "CEFR-ish level estimate (A1-C1)", "strengths": "中文，做得好的地方", "focus": "中文，下一步最该练什么"}
 }
-Rules: corrections max 6 (only real errors), alternatives max 4, vocab max 8 (useful & appears in transcript), be specific not generic.`;
+Rules: reply in ${LANG_LABEL[target]} for all learning content (corrected/suggestion/term/contextSentence); explanations stay in Chinese. corrections max 6 (only real errors — if the learner made no mistakes, return an empty array instead of inventing errors), alternatives max 4, vocab max 8 (useful & appears in transcript), be specific not generic.`;
+}
 
 export interface ReviewDeps {
   conversations: ConversationRepo;
@@ -125,10 +134,11 @@ export class ReviewService {
       .map((m) => `${m.role === "user" ? "Learner" : "Coach"}: ${m.content}`)
       .join("\n");
 
+    const targetLang = getScenario(session.scenarioId)?.targetLang ?? "en";
     const decision = this.deps.router.route("review");
     const result = decision.provider.chat({
       messages: [
-        { role: "system", content: REVIEW_PROMPT },
+        { role: "system", content: reviewPrompt(targetLang) },
         { role: "user", content: transcript },
       ],
       temperature: 0.2,

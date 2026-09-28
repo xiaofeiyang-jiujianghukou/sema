@@ -303,7 +303,7 @@ export class ArkPlanASRProvider implements ASRProvider {
             enable_ddc: true,
             show_utterances: true,
             enable_nonstream: false,
-            language: this.config.language ?? "en-US",
+            language: options?.language ?? this.config.language ?? "en-US",
           },
         }), "utf8")),
       }));

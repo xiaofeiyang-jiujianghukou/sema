@@ -42,6 +42,8 @@ export interface StreamingRecognizer {
 
 export interface RecognizerOptions {
   sampleRate?: number;
+  /** 识别语言提示（BCP-47：en-US / ja-JP / ko-KR），显著影响准确率 */
+  language?: string;
   signal?: AbortSignal;
 }
 

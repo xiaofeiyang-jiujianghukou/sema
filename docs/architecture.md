@@ -178,9 +178,25 @@ WebSocket `/v1/realtime`，双通道帧设计：
 注意：Coding Plan Key 与 Agent Plan Key **互不通用**（跨用即 401）；
 套餐通道模型名以 `plans model-list` 为准（如 doubao-seed-2-0-mini-260428）。
 
-### 8.3 路由一览（M2 新增）
+### 9. M3 前置实施记录（内容扩容 + 多语言对，已落地）
+
+- **情景库 3 → 12**：10 个手写打磨的中→英情景（点餐/面试/问路/餐厅/酒店/
+  药店/退货/值机/寒暄/看房，A2-B1 全覆盖）+ 中→日、中→韩咖啡馆试点各 1。
+- **语言对抽象**：`TargetLang = en | ja | ko`；各语言语域约定进 system prompt
+  （日语 です/ます、韩语 해요체）；复盘与精讲提示词按目标语言参数化
+  （学习内容用目标语言、解释保持中文）；生词卡携带 `lang` 字段。
+- **语音多语言**：`RecognizerOptions.language`（BCP-47，方舟 SAUC
+  `request.language`）+ 每情景音色映射（`SEMA_TTS_SPEAKER_EN/JA/KO`，
+  未配置回落默认音色——日/韩音色 ID 待真机联调验证）。
+- **目录接口**：`GET /v1/conversations/scenarios?targetLang=ja` 支持按语言过滤。
+- **冒烟**：日文全链路真实通过（さくら 店员对话 → 日语教练复盘 →
+  いらっしゃいませ 精讲，敬语辨析质量达标）。
+- 后续情景以 scenario_pack 付费内容包扩容（价目已预留），AI 预生成 + 人工打磨。
+
+### 8.3 路由一览（M2/M3）
 
 ```
+GET  /v1/conversations/scenarios             情景目录（?targetLang=en|ja|ko）
 POST /v1/conversations/:sessionId/review   生成复盘（幂等）+ 生词自动入本
 GET  /v1/conversations/:sessionId/review   拉取报告
 GET  /v1/vocab?userId=                     生词列表（按到期排序）

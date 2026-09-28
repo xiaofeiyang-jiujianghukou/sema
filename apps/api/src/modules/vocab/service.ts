@@ -7,13 +7,14 @@
  */
 import { randomUUID } from "node:crypto";
 import { newSrsState, scheduleSrs, type SrsGrade, type SrsState } from "@sema/shared";
+import { getScenario, type TargetLang } from "../../content/scenarios.js";
 import type { SessionReview } from "../review/service.js";
 
 export interface VocabLecture {
   /** 释义（含词性，中文） */
   definition: string;
-  /** 地道例句 2-3 条 */
-  examples: Array<{ en: string; zh: string }>;
+  /** 目标语地道例句 2-3 条 */
+  examples: Array<{ text: string; zh: string }>;
   /** 辨析：与近义词/易混表达的区别（中文） */
   nuance: string;
   /** 记忆钩子：词源/联想/场景锚点（中文） */
@@ -27,6 +28,8 @@ export interface VocabCard extends SrsState {
   userId: string;
   term: string;
   translation: string;
+  /** 词条所属目标语言（精讲提示词/后续朗读用） */
+  lang: TargetLang;
   /** 出处例句（复盘语境或手动输入） */
   context: string | null;
   sourceSessionId: string | null;
@@ -107,6 +110,7 @@ export class VocabBookService {
     userId: string;
     term: string;
     translation: string;
+    lang?: TargetLang;
     context?: string;
     sourceSessionId?: string;
   }): Promise<{ card: VocabCard; created: boolean }> {
@@ -120,6 +124,7 @@ export class VocabBookService {
       userId: input.userId,
       term,
       translation: input.translation.trim(),
+      lang: input.lang ?? "en",
       context: input.context?.trim() || null,
       sourceSessionId: input.sourceSessionId ?? null,
       createdAtMs: this.now(),
@@ -131,8 +136,9 @@ export class VocabBookService {
     return { card, created: true };
   }
 
-  /** 复盘报告里的生词批量入本（按 term 去重） */
+  /** 复盘报告里的生词批量入本（按 term 去重；语言继承自情景） */
   async addFromReview(review: SessionReview): Promise<{ added: number; duplicates: number }> {
+    const lang = getScenario(review.scenarioId)?.targetLang ?? "en";
     let added = 0;
     let duplicates = 0;
     for (const item of review.vocab) {
@@ -140,6 +146,7 @@ export class VocabBookService {
         userId: review.userId,
         term: item.term,
         translation: item.translation,
+        lang,
         context: item.contextSentence,
         sourceSessionId: review.sessionId,
       });
