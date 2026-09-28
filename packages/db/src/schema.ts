@@ -15,24 +15,30 @@ import {
   text,
   timestamp,
   uniqueIndex,
-  uuid,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable(
   "users",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: text("id").primaryKey(),
     phone: text("phone"),
     wechatOpenid: text("wechat_openid"),
     appleSub: text("apple_sub"),
+    /** 昵称（移动端展示） */
     displayName: text("display_name").notNull().default(""),
+    /** 手机号+密码登录：scrypt（N=16384, r=8, p=1）密钥的 hex，64 字节 */
+    passwordHash: text("password_hash"),
+    /** scrypt 盐，hex，32 字节 */
+    passwordSalt: text("password_salt"),
+    /** 学习目标语言：en | ja | ko */
+    targetLang: text("target_lang").notNull().default("en"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("users_phone_uq").on(t.phone)],
 );
 
 export const wallets = pgTable("wallets", {
-  userId: uuid("user_id")
+  userId: text("user_id")
     .primaryKey()
     .references(() => users.id),
   /** 余额（厘）。1 积分 = 100 厘 */
@@ -46,8 +52,8 @@ export const wallets = pgTable("wallets", {
 export const ledgerEntries = pgTable(
   "ledger_entries",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     /** grant | topup | charge | refund */
@@ -88,8 +94,8 @@ export const pricingActions = pgTable("pricing_actions", {
 export const sessions = pgTable(
   "sessions",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     sourceLang: text("source_lang").notNull(),
@@ -103,4 +109,52 @@ export const sessions = pgTable(
     status: text("status").notNull().default("active"),
   },
   (t) => [index("sessions_user_idx").on(t.userId, t.startedAt)],
+);
+
+/** 生词卡片（FSRS-5 状态 + AI 精讲缓存） */
+export const vocabCards = pgTable(
+  "vocab_cards",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    term: text("term").notNull(),
+    translation: text("translation").notNull(),
+    /** 首次学到的上下文句（复盘提取时有值） */
+    context: text("context"),
+    /** 目标语言：en | ja | ko */
+    lang: text("lang").notNull().default("en"),
+    /** ts-fsrs Card 序列化（due/stability/difficulty/elapsed_days/...） */
+    fsrsState: text("fsrs_state").notNull(),
+    dueMs: timestamp("due_ms", { withTimezone: true }).notNull().defaultNow(),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    reviewCount: integer("review_count").notNull().default(0),
+    /** AI 精讲缓存（每词一次终身复用）：{definition, examples, nuance, memoryHook, collocations} */
+    lecture: text("lecture"),
+    lectureGeneratedAt: timestamp("lecture_generated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("vocab_user_term_uq").on(t.userId, t.term),
+    index("vocab_due_idx").on(t.userId, t.dueMs),
+  ],
+);
+
+/** 复盘报告（每次会话一份，幂等键 = 会话 id） */
+export const reviewReports = pgTable(
+  "review_reports",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull().unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 报告 JSON（纠错/地道说法/生词/overall） */
+    report: text("report").notNull(),
+    priceCents: integer("price_cents").notNull().default(100),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("review_user_idx").on(t.userId, t.createdAt)],
 );

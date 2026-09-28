@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
+import { Pool } from "pg";
 import {
   ArkPlanASRProvider,
   ArkPlanTTSProvider,
@@ -25,6 +26,7 @@ import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
 import { MemoryWalletRepo } from "./modules/wallet/repo.js";
+import { DrizzleWalletRepo, DrizzleUserRepo } from "./modules/wallet/repo-pg.js";
 import { realtimeRoutes } from "./routes/realtime.js";
 import { reviewRoutes } from "./routes/review.js";
 import { statsRoutes } from "./routes/stats.js";
@@ -63,6 +65,8 @@ export interface BuildAppOptions {
   smsSender?: SmsSender;
   /** 验证码生成器（测试用固定码；缺省随机） */
   smsCode?: () => string;
+  /** Postgres 连接串；缺省用内存仓储（开发/测试），配置后走生产账本 */
+  databaseUrl?: string;
 }
 
 /** 供应商路由组装：默认 mock（零成本开发/测试），配置 Key 即切真实模型 */
@@ -114,13 +118,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(cors, { origin: true });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
 
-  // 领域服务共享同一组仓储实例（M2 Postgres 化时整组替换为 @sema/db 实现）
+  // 领域服务共享同一组仓储实例；Postgres 化逐仓储替换，领域逻辑不变
   const conversationRepo = new MemoryConversationRepo();
   const reviewRepo = new MemoryReviewRepo();
   const vocabRepo = new MemoryVocabRepo();
   const clock = options.now ?? Date.now;
 
-  app.decorate("wallets", new WalletService(new MemoryWalletRepo()));
+  // 仓储装配：生产（DATABASE_URL）→ Postgres 账本；开发/测试 → 内存实现
+  const dbPool = options.databaseUrl ? new Pool({ connectionString: options.databaseUrl }) : null;
+  const walletRepo = dbPool ? new DrizzleWalletRepo(dbPool) : new MemoryWalletRepo();
+  const userRepo = dbPool ? new DrizzleUserRepo(dbPool) : new MemoryUserRepo();
+
+  app.decorate("wallets", new WalletService(walletRepo));
   app.decorate(
     "conversations",
     new ConversationService(
@@ -161,7 +170,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("stats", new StatsService(conversationRepo, reviewRepo, vocabBook, { now: clock }));
 
   app.decorate("auth", new AuthService({
-    users: new MemoryUserRepo(),
+    users: userRepo,
     sms: options.smsSender ?? new ConsoleSmsSender(),
     now: clock,
     ...(options.smsCode ? { codeFactory: options.smsCode } : {}),

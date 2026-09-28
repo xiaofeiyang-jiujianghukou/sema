@@ -13,14 +13,19 @@
     "@fastify/cors": "^11.0.0",
     "@fastify/websocket": "^11.0.0",
     "@sema/ai-core": "workspace:*",
+    "@sema/db": "workspace:*",
     "@sema/shared": "workspace:*",
+    "drizzle-orm": "^0.44.7",
     "fastify": "^5.3.0",
+    "pg": "^8.23.0",
     "ws": "^8.18.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "@types/pg": "^8.23.1",
     "@types/ws": "^8.5.0",
+    "pg-mem": "^3.0.14",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
