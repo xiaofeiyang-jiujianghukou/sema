@@ -40,6 +40,14 @@ export class ConversationEndedError extends Error {
   }
 }
 
+export class ConversationForbiddenError extends Error {
+  readonly code = "CONVERSATION_FORBIDDEN" as const;
+  constructor(readonly sessionId: string) {
+    super(`会话不属于当前用户: ${sessionId}`);
+    this.name = "ConversationForbiddenError";
+  }
+}
+
 export interface ConversationPricing {
   code: "ai_conversation";
   unit: "second";
@@ -139,6 +147,32 @@ export class ConversationService {
         goals: scenario.goals,
       },
       opener: scenario.opener,
+      pricing: conversationPricing(),
+    };
+  }
+
+  /** 语音通道复用已有会话（归属 + 状态校验）；不重放开场白 TTS，由调用方决定 */
+  async resumeVoice(userId: string, sessionId: string): Promise<StartResult> {
+    const session = await this.repo.get(sessionId);
+    if (!session) throw new ConversationNotFoundError(sessionId);
+    if (session.userId !== userId) throw new ConversationForbiddenError(sessionId);
+    if (session.status !== "active") throw new ConversationEndedError(sessionId);
+    const scenario = getScenario(session.scenarioId);
+    if (!scenario) throw new ScenarioNotFoundError(session.scenarioId);
+    const opener = session.history.find((h) => h.role === "assistant")?.content ?? scenario.opener;
+    return {
+      sessionId: session.id,
+      scenario: {
+        id: scenario.id,
+        targetLang: scenario.targetLang,
+        title: scenario.title,
+        titleEn: scenario.titleEn,
+        emoji: scenario.emoji,
+        difficulty: scenario.difficulty,
+        setting: scenario.setting,
+        goals: scenario.goals,
+      },
+      opener,
       pricing: conversationPricing(),
     };
   }

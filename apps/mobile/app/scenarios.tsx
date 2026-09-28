@@ -38,7 +38,7 @@ export default function Scenarios(): JSX.Element {
     setStarting(scenarioId);
     try {
       const started = await api.startConversation(token, scenarioId);
-      router.push({ pathname: "/chat/[id]", params: { id: started.sessionId, opener: started.opener, title: started.scenario.title } });
+      router.push({ pathname: "/chat/[id]", params: { id: started.sessionId, opener: started.opener, title: started.scenario.title, scenarioId } });
     } catch (err) {
       alertError(err);
     } finally {
