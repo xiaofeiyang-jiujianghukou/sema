@@ -8,10 +8,10 @@ const SCRIPT_CHECK: Record<string, RegExp> = {
 };
 
 describe("情景内容资产质量门槛", () => {
-  it("M3 交付 10 个中→英情景 + 日/韩试点，id 唯一", () => {
+  it("M3 交付 10 个中→英情景 + 日/韩各 6 个情景，id 唯一", () => {
     expect(SCENARIOS.filter((s) => s.targetLang === "en").length).toBeGreaterThanOrEqual(10);
-    expect(SCENARIOS.filter((s) => s.targetLang === "ja").length).toBeGreaterThanOrEqual(1);
-    expect(SCENARIOS.filter((s) => s.targetLang === "ko").length).toBeGreaterThanOrEqual(1);
+    expect(SCENARIOS.filter((s) => s.targetLang === "ja").length).toBeGreaterThanOrEqual(6);
+    expect(SCENARIOS.filter((s) => s.targetLang === "ko").length).toBeGreaterThanOrEqual(6);
     const ids = SCENARIOS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -66,7 +66,21 @@ describe("情景内容资产质量门槛", () => {
     for (const summary of summaries) {
       expect(JSON.stringify(summary)).not.toContain("systemPrompt");
     }
-    expect(listScenarioSummaries("ja").map((s) => s.id)).toEqual(["cafe-order-ja"]);
-    expect(listScenarioSummaries("ko").map((s) => s.id)).toEqual(["cafe-order-ko"]);
+    expect(listScenarioSummaries("ja").map((s) => s.id)).toEqual([
+      "cafe-order-ja",
+      "konbini-lunch-ja",
+      "tokyo-directions-ja",
+      "ramen-counter-ja",
+      "ryokan-checkin-ja",
+      "senpai-invite-ja",
+    ]);
+    expect(listScenarioSummaries("ko").map((s) => s.id)).toEqual([
+      "cafe-order-ko",
+      "kimbap-shop-ko",
+      "subway-help-ko",
+      "korean-bbq-ko",
+      "hotel-checkin-ko",
+      "hongdae-shopping-ko",
+    ]);
   });
 });
