@@ -178,7 +178,33 @@ WebSocket `/v1/realtime`，双通道帧设计：
 注意：Coding Plan Key 与 Agent Plan Key **互不通用**（跨用即 401）；
 套餐通道模型名以 `plans model-list` 为准（如 doubao-seed-2-0-mini-260428）。
 
-### 9. M3 前置实施记录（内容扩容 + 多语言对，已落地）
+### 9. M3 实施记录（进行中）
+
+### 9.1 认证体系（已落地）
+
+- **登录方式**：手机号 + 密码（scrypt 哈希，timingSafeEqual 比对）或
+  手机号 + 6 位短信验证码（5 分钟有效、一次性、60s 冷却 + 每小时 5 条限流）
+- **会话**：不透明随机令牌（32B hex，30 天），服务端 Map 可撤销（比 JWT 简单且能踢下线）；
+  移动端存 SecureStore（Android Keystore）
+- **短信通道**：`SmsSender` 接口抽象——dev/test 用固定码/控制台实现，
+  生产接阿里云或腾讯云短信（待用户提供云短信凭证）
+- **鉴权**：conversations/vocab/review/stats/wallet 全部从 `Authorization: Bearer` 取
+  userId（不再信任请求参数）；WS realtime start 帧携带 token
+- wallet grant/topup 保留为**开发通道**（NODE_ENV=production 不注册）；
+  生产充值走微信支付回调（商户号开通后接入）
+
+### 9.2 移动端壳 · Android（Expo SDK 54 + expo-router，已落地）
+
+- `apps/mobile`：七屏（启动分流/登录注册/情景目录/文字对话/复盘报告/
+  生词本/我的），深色品牌视觉
+- 对话屏把计费做透明：每轮显示"本轮 X 厘 · 余额 Y 积分"
+- 生词本四档打分（忘了/费劲/顺利/轻松）+ AI 精讲弹层（每词一次 10厘）
+- 充值按钮为占位（微信支付商户号申请中）
+- 验证：`tsc --noEmit` 全绿 + `expo export` Metro 打包成功（2.58MB Hermes bundle）
+- 真机路径：Expo Go 扫码 + `EXPO_PUBLIC_API_URL=http://<局域网IP>:8787`
+- **语音未接入移动端**：录音 + WS 流式播放是下一个里程碑（后端已就绪）
+
+## 10. M3 前置实施记录（内容扩容 + 多语言对，已落地）
 
 - **情景库 3 → 12**：10 个手写打磨的中→英情景（点餐/面试/问路/餐厅/酒店/
   药店/退货/值机/寒暄/看房，A2-B1 全覆盖）+ 中→日、中→韩咖啡馆试点各 1。

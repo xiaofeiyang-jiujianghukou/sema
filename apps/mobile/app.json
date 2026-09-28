@@ -13,6 +13,9 @@
     },
     "android": {
       "package": "com.sema.app"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

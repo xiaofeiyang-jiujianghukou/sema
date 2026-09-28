@@ -10,6 +10,7 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "dev:api": "pnpm --filter @sema/api dev",
+    "dev:mobile": "pnpm --filter @sema/mobile start",
     "dev:mobile": "pnpm --filter @sema/mobile start"
   },
   "devDependencies": {
