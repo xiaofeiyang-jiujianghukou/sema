@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "言泉",
+    "slug": "yanquan",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "yanquan",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yanquan.app"
+    },
+    "android": {
+      "package": "com.yanquan.app"
+    }
+  }
+}

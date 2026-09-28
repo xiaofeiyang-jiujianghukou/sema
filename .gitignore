@@ -1,0 +1,24 @@
+# deps & builds
+node_modules/
+dist/
+.turbo/
+coverage/
+
+# expo
+.expo/
+ios/
+android/
+*.log
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# os
+.DS_Store
+Thumbs.db
+
+# ide
+.idea/
+.vscode/
