@@ -94,3 +94,35 @@ reviews(session_id, errors[], upgrades[], new_vocab[])   # 复盘报告
 - 内容安全：ASR/LLM 输出过审核接口（供应商自带或自接）
 - 支付：iOS IAP 服务端收据校验；微信/支付宝异步回调验签 + 幂等
 - 上线前：ICP 备案、（如需）增值电信业务许可评估、隐私政策与个人信息保护合规自查
+
+## 7. M1 实施记录（已落地）
+
+### 7.1 按秒累进计费（水表模型）
+
+不是「结束才结算」，而是像水表一样在每个计费点（每次 turn、end）把**自上次结算以来的秒数**结清：
+
+- 用户中途退出，欠账最多不超过一个 turn 的时长——按量付费模式下资金风险趋近于零
+- 每个秒段一笔账，幂等键 = `sessionId:seq`，重试不重复扣
+- 余额不足在任何一次计费点即时拦截（409），充值后原样续聊
+- 会话对象带成本计量器（CostMeter）：每次 LLM 调用记录 `model × usage × ¥`（分析口径），对话结束即得单次会话真实成本 → 驱动定价校准
+
+### 7.2 供应商接入（ai-core）
+
+- 统一接口 `LLMProvider.chat() → { chunks, usage }`，业务代码零供应商耦合
+- `OpenAICompatProvider` 一个适配器通吃方舟 Ark / 百炼 compatible-mode / OpenAI（换 baseUrl/model 即切）
+- 成本表（`MODEL_COSTS`，¥/1M tokens）为分析锚点，上线前用真实账单校准
+- mock 供应商零成本跑通全链路；配置 `SEMA_LLM_PROVIDER=openai-compat` + `SEMA_LLM_API_KEY` 即切真实模型
+
+### 7.3 实时语音传输协议（M1.5 待实施）
+
+WebSocket `/v1/realtime`，双通道帧设计：
+
+```
+控制帧(JSON): { type: "start" | "turn" | "end" | "interrupt", sessionId?, scenarioId? }
+音频帧(binary): 16kHz PCM 分片（上行用户语音 / 下行 TTS 语音）
+```
+
+- 上行：VAD 断句 → ASR 流式 → 复用 ConversationService.turn()
+- 下行：LLM 流式 → TTS 流式分片回传
+- 打断（interrupt）：用户开口即取消当前 TTS 播放 + abort LLM 请求
+- 真机联调前置条件：选定 ASR/TTS 供应商并拿到 Key（方舟语音系暂不支持 arkcli Endpoint 创建，走控制台开通）
