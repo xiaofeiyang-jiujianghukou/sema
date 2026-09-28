@@ -1,19 +1,21 @@
 /**
  * 学习档案 + 数据导出路由
- * GET /v1/stats/:userId   —— 学习档案（投入/词汇/连续天数/14 天曲线）
- * GET /v1/users/:userId/export —— 全量数据导出（JSON，终身可携）
+ * GET /v1/stats          —— 学习档案（投入/词汇/连续天数/14 天曲线）
+ * GET /v1/users/me/export —— 全量数据导出（JSON，终身可携）
  */
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { requireAuth } from "./auth.js";
 
 export const statsRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/stats/:userId", async (req) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
-    return app.stats.profile(userId);
+  app.get("/stats", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    return app.stats.profile(req.userId);
   });
 
-  app.get("/users/:userId/export", async (req) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
+  app.get("/users/me/export", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const userId = req.userId;
     const [sessions, reviews, vocab] = await Promise.all([
       app.conversations.listByUser(userId),
       app.reviews.listByUser(userId),

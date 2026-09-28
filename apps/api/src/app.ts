@@ -20,6 +20,8 @@ import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
+import { AuthService, MemoryUserRepo, ConsoleSmsSender, type SmsSender } from "./modules/auth/service.js";
+import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
 import { MemoryWalletRepo } from "./modules/wallet/repo.js";
@@ -39,6 +41,7 @@ declare module "fastify" {
     vocabBook: VocabBookService;
     lectures: LectureService;
     stats: StatsService;
+    auth: AuthService;
     speech: { asr: ASRProvider; tts: TTSProvider };
     /** 目标语言 → 语音参数（ASR 语言提示 + TTS 音色） */
     speechForLang: (lang: "en" | "ja" | "ko") => { language: string; speaker?: string };
@@ -56,6 +59,10 @@ export interface BuildAppOptions {
   speech?: { asr: ASRProvider; tts: TTSProvider };
   /** 测试校准的 VAD 灵敏度 */
   vad?: VADOptions;
+  /** 短信发送器（测试注入固定验证码；生产接云短信） */
+  smsSender?: SmsSender;
+  /** 验证码生成器（测试用固定码；缺省随机） */
+  smsCode?: () => string;
 }
 
 /** 供应商路由组装：默认 mock（零成本开发/测试），配置 Key 即切真实模型 */
@@ -153,7 +160,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("vocabBook", vocabBook);
   app.decorate("stats", new StatsService(conversationRepo, reviewRepo, vocabBook, { now: clock }));
 
+  app.decorate("auth", new AuthService({
+    users: new MemoryUserRepo(),
+    sms: options.smsSender ?? new ConsoleSmsSender(),
+    now: clock,
+    ...(options.smsCode ? { codeFactory: options.smsCode } : {}),
+  }));
+
   await app.register(healthRoutes);
+  await app.register(authRoutes, { prefix: "/v1/auth" });
   await app.register(walletRoutes, { prefix: "/v1/wallet" });
   await app.register(conversationRoutes, { prefix: "/v1/conversations" });
   await app.register(reviewRoutes, { prefix: "/v1" });

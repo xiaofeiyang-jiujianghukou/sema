@@ -3,11 +3,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { MockLLMProvider, TaskRouter } from "@sema/ai-core";
 import { SIGNUP_GRANT_CENTS } from "@sema/shared";
 import { buildApp } from "../app.js";
+import { authed, createTestUser, TEST_SMS, TEST_CODE, type TestUser } from "../test-utils.js";
 
 // 可拨动的假时钟
 let clockMs: number;
 
 let app: FastifyInstance;
+let userC1: TestUser;
+let userC2: TestUser;
+let userC3: TestUser;
 
 beforeAll(async () => {
   app = await buildApp({
@@ -16,7 +20,11 @@ beforeAll(async () => {
       flagship: new MockLLMProvider("mock-flagship", () => "Sure thing — anything else?"),
       cheap: new MockLLMProvider("mock-cheap"),
     }),
+    smsSender: TEST_SMS, smsCode: () => TEST_CODE,
   });
+  userC1 = await createTestUser(app);
+  userC2 = await createTestUser(app);
+  userC3 = await createTestUser(app);
 });
 
 afterAll(async () => {
@@ -32,21 +40,22 @@ describe("会话 API 冒烟", () => {
     const res = await app.inject({ method: "GET", url: "/v1/conversations/scenarios" });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.scenarios.length).toBeGreaterThanOrEqual(3);
+    expect(body.scenarios.length).toBeGreaterThanOrEqual(12);
     expect(JSON.stringify(body)).not.toContain("systemPrompt");
   });
 
   it("完整闭环：开始 → 明码标价 → 两轮对话 → 账单", async () => {
     await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c1/grant",
+      url: `/v1/wallet/grant?userId=${userC1.userId}`,
       payload: { cents: SIGNUP_GRANT_CENTS, reason: "注册体验金" },
     });
 
     const start = await app.inject({
       method: "POST",
       url: "/v1/conversations",
-      payload: { userId: "user_c1", scenarioId: "coffee-order" },
+      headers: authed(userC1.token),
+      payload: { scenarioId: "coffee-order" },
     });
     expect(start.statusCode).toBe(201);
     const startBody = start.json();
@@ -90,7 +99,8 @@ describe("会话 API 冒烟", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/conversations",
-      payload: { userId: "user_x", scenarioId: "nope" },
+      headers: authed(userC2.token),
+      payload: { scenarioId: "nope" },
     });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe("SCENARIO_NOT_FOUND");
@@ -99,13 +109,14 @@ describe("会话 API 冒烟", () => {
   it("对话中断网扣费：余额不足 409 且可充值续聊", async () => {
     await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c2/grant",
+      url: `/v1/wallet/grant?userId=${userC2.userId}`,
       payload: { cents: 100, reason: "少量赠送" },
     });
     const start = await app.inject({
       method: "POST",
       url: "/v1/conversations",
-      payload: { userId: "user_c2", scenarioId: "lost-in-london" },
+      headers: authed(userC2.token),
+      payload: { scenarioId: "lost-in-london" },
     });
     const sessionId = start.json().sessionId;
 
@@ -121,7 +132,7 @@ describe("会话 API 冒烟", () => {
     // 充值后续聊成功（31 秒一并结清 = 155 厘）
     await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c2/topup",
+      url: `/v1/wallet/topup?userId=${userC2.userId}`,
       payload: { cents: 1000, idempotencyKey: "topup_user_c2_1" },
     });
     clockMs = 31_000;
@@ -137,13 +148,14 @@ describe("会话 API 冒烟", () => {
   it("空消息 400", async () => {
     await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c3/grant",
+      url: `/v1/wallet/grant?userId=${userC3.userId}`,
       payload: { cents: SIGNUP_GRANT_CENTS, reason: "注册体验金" },
     });
     const start = await app.inject({
       method: "POST",
       url: "/v1/conversations",
-      payload: { userId: "user_c3", scenarioId: "job-interview" },
+      headers: authed(userC3.token),
+      payload: { scenarioId: "job-interview" },
     });
     const res = await app.inject({
       method: "POST",

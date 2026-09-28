@@ -2,11 +2,20 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SIGNUP_GRANT_CENTS } from "@sema/shared";
 import { buildApp } from "../app.js";
+import { authed, createTestUser, TEST_SMS, TEST_CODE, type TestUser } from "../test-utils.js";
 
 let app: FastifyInstance;
+let userA: TestUser;
+let userB: TestUser;
+let userC: TestUser;
+let userD: TestUser;
 
 beforeAll(async () => {
-  app = await buildApp();
+  app = await buildApp({ smsSender: TEST_SMS, smsCode: () => TEST_CODE });
+  userA = await createTestUser(app);
+  userB = await createTestUser(app);
+  userC = await createTestUser(app);
+  userD = await createTestUser(app);
 });
 
 afterAll(async () => {
@@ -25,7 +34,7 @@ describe("API 冒烟", () => {
   it("钱包流：赠送 → 余额 → 消费 → 账单", async () => {
     const grant = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_a/grant",
+      url: `/v1/wallet/grant?userId=${userA.userId}`,
       payload: { cents: SIGNUP_GRANT_CENTS, reason: "注册体验金" },
     });
     expect(grant.statusCode).toBe(201);
@@ -33,7 +42,8 @@ describe("API 冒烟", () => {
 
     const charge = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_a/charge",
+      url: "/v1/wallet/charge",
+      headers: authed(userA.token),
       payload: { action: "ai_conversation", quantity: 65, relatedId: "session_1" },
     });
     expect(charge.statusCode).toBe(200);
@@ -42,7 +52,7 @@ describe("API 冒烟", () => {
     expect(chargeBody.balanceCredits).toBe("26.75");
     expect(chargeBody.pricing.displayName).toBe("AI 口语对话");
 
-    const wallet = await app.inject({ method: "GET", url: "/v1/wallet/user_a" });
+    const wallet = await app.inject({ method: "GET", url: "/v1/wallet", headers: authed(userA.token) });
     expect(wallet.statusCode).toBe(200);
     const walletBody = wallet.json();
     expect(walletBody.balanceCents).toBe(2675);
@@ -53,12 +63,13 @@ describe("API 冒烟", () => {
   it("余额不足返回 409 与缺口信息", async () => {
     await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_b/grant",
+      url: `/v1/wallet/grant?userId=${userB.userId}`,
       payload: { cents: 100, reason: "少量赠送" },
     });
     const res = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_b/charge",
+      url: "/v1/wallet/charge",
+      headers: authed(userB.token),
       payload: { action: "ai_conversation", quantity: 600 },
     });
     expect(res.statusCode).toBe(409);
@@ -75,26 +86,27 @@ describe("API 冒烟", () => {
     };
     const first = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c/topup",
+      url: `/v1/wallet/topup?userId=${userC.userId}`,
       payload,
     });
     const second = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_c/topup",
+      url: `/v1/wallet/topup?userId=${userC.userId}`,
       payload,
     });
     expect(first.statusCode).toBe(201);
     expect(second.statusCode).toBe(200);
     expect(second.json().replayed).toBe(true);
 
-    const wallet = await app.inject({ method: "GET", url: "/v1/wallet/user_c" });
+    const wallet = await app.inject({ method: "GET", url: "/v1/wallet", headers: authed(userC.token) });
     expect(wallet.json().balanceCents).toBe(5000);
   });
 
   it("参数不合法返回 400", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/v1/wallet/user_d/charge",
+      url: "/v1/wallet/charge",
+      headers: authed(userD.token),
       payload: { action: "ai_conversation", quantity: -1 },
     });
     expect(res.statusCode).toBe(400);

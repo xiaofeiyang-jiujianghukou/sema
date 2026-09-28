@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { formatCredits, priceOf, type ActionType } from "@sema/shared";
 import { z } from "zod";
 import { InsufficientFundsError } from "../modules/wallet/service.js";
+import { requireAuth } from "./auth.js";
 
 const actionCodes = ["ai_conversation", "review_report", "vocab_lecture", "scenario_pack"] as const;
 
@@ -25,20 +26,22 @@ const topupSchema = z.object({
 });
 
 export const walletRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/:userId", async (req) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
-    return app.wallets.getWallet(userId);
+  // 我的钱包（鉴权后 userId 从令牌取）
+  app.get("/", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    return app.wallets.getWallet(req.userId);
   });
 
-  app.post("/:userId/charge", async (req, reply) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
+  // 服务内部计费（对话水表/复盘/精讲已内置扣费；此端点供联调对账）
+  app.post("/charge", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const parsed = chargeSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } });
     }
     try {
       const { entry, replayed } = await app.wallets.charge(
-        userId,
+        req.userId,
         parsed.data.action as ActionType,
         parsed.data.quantity,
         {
@@ -69,14 +72,14 @@ export const walletRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // 开发通道：生产环境不注册（充值走支付回调）
+  // 开发通道：生产环境不注册（充值走微信支付回调，商户号开通后接入）
   if (process.env.NODE_ENV !== "production") {
-    app.post("/:userId/grant", async (req, reply) => {
-      const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
+    app.post("/grant", async (req, reply) => {
       const parsed = grantSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } });
       }
+      const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.query);
       const { entry, replayed } = await app.wallets.grant(
         userId,
         parsed.data.cents,
@@ -91,8 +94,8 @@ export const walletRoutes: FastifyPluginAsync = async (app) => {
       });
     });
 
-    app.post("/:userId/topup", async (req, reply) => {
-      const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.params);
+    app.post("/topup", async (req, reply) => {
+      const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.query);
       const parsed = topupSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } });

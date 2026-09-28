@@ -5,14 +5,24 @@
 import type { AddressInfo } from "node:net";
 import { loadEnvFiles } from "../src/env.js";
 import { buildApp } from "../src/app.js";
+import { FixedCodeSmsSender } from "../src/modules/auth/service.js";
+import { authed } from "../src/test-utils.js";
 
 async function main(): Promise<void> {
   loadEnvFiles();
   const scenarioId = process.argv[2] ?? "coffee-order";
-  const app = await buildApp();
-  await app.inject({ method: "POST", url: "/v1/wallet/smoke/grant", payload: { cents: 50000, reason: "复盘冒烟" } });
+  const app = await buildApp({ smsSender: new FixedCodeSmsSender("246810"), smsCode: () => "246810" });
 
-  const started = await app.inject({ method: "POST", url: "/v1/conversations", payload: { userId: "smoke", scenarioId } });
+  // 注册冒烟用户（走认证流）
+  const reg = await app.inject({ method: "POST", url: "/v1/auth/request-code", payload: { phone: "13800001234", purpose: "register" } });
+  if (reg.statusCode !== 200) throw new Error(`request-code: ${reg.statusCode}`);
+  const user = await app.inject({ method: "POST", url: "/v1/auth/register", payload: { phone: "13800001234", code: "246810", password: "Smoke123456", nickname: "冒烟用户" } });
+  if (user.statusCode !== 201) throw new Error(`register: ${user.statusCode}`);
+  const token = (user.json() as { token: string }).token;
+  const userId = (user.json() as { user: { id: string } }).user.id;
+  await app.inject({ method: "POST", url: `/v1/wallet/grant?userId=${userId}`, payload: { cents: 50000, reason: "复盘冒烟" } });
+
+  const started = await app.inject({ method: "POST", url: "/v1/conversations", headers: authed(token), payload: { scenarioId } });
   if (started.statusCode !== 201) {
     console.error(`❌ 开会话失败(${started.statusCode}):`, started.body.slice(0, 200));
     process.exit(1);
@@ -26,14 +36,14 @@ async function main(): Promise<void> {
     "Sorry, I mean I would like a latte with oat milk",
   ];
   for (const line of turnLines) {
-    const turn = await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/turns`, payload: { text: line } });
+    const turn = await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/turns`, headers: authed(token), payload: { text: line } });
     const body = turn.json() as { reply?: string; error?: unknown };
     if (body.reply) console.log(`你: ${line}\nAI: ${body.reply.slice(0, 80)}`);
     else console.log(`turn 失败(${turn.statusCode}):`, turn.body.slice(0, 160));
   }
-  await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/end` });
+  await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/end`, headers: authed(token) });
 
-  const reviewRes = await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/review` });
+  const reviewRes = await app.inject({ method: "POST", url: `/v1/conversations/${sessionId}/review`, headers: authed(token) });
   if (reviewRes.statusCode !== 200) {
     console.error(`❌ 复盘失败(${reviewRes.statusCode}):`, reviewRes.body.slice(0, 400));
     process.exit(1);
@@ -52,13 +62,13 @@ async function main(): Promise<void> {
   console.log(`  亮点: ${review.overall.strengths.slice(0, 60)}\n  重点: ${review.overall.focus.slice(0, 60)}`);
   console.log(`生词入本: +${review.vocabIngested.added}（重复 ${review.vocabIngested.duplicates}）`);
 
-  const due = await app.inject({ method: "GET", url: "/v1/vocab/due?userId=smoke" });
+  const due = await app.inject({ method: "GET", url: "/v1/vocab/due", headers: authed(token) });
   const dueCards = (due.json() as { cards: Array<{ id: string; term: string }> }).cards;
   console.log("到期复习队列:", dueCards.map((c) => c.term).join(", "));
 
   // 生词 AI 精讲（廉价档真模型，10厘/词，每词一次）
   if (dueCards.length > 0) {
-    const lectureRes = await app.inject({ method: "POST", url: `/v1/vocab/${dueCards[0]!.id}/lecture`, payload: { userId: "smoke" } });
+    const lectureRes = await app.inject({ method: "POST", url: `/v1/vocab/${dueCards[0]!.id}/lecture`, headers: authed(token), payload: {} });
     if (lectureRes.statusCode !== 200) {
       console.error(`❌ 精讲失败(${lectureRes.statusCode}):`, lectureRes.body.slice(0, 300));
       process.exit(1);
@@ -72,7 +82,7 @@ async function main(): Promise<void> {
     console.log(`  搭配: ${lec.lecture.collocations.join(", ")}`);
   }
 
-  const stats = await app.inject({ method: "GET", url: "/v1/stats/smoke" });
+  const stats = await app.inject({ method: "GET", url: "/v1/stats", headers: authed(token) });
   const profile = stats.json() as { turns: number; vocab: { total: number } };
   console.log(`档案: 开口 ${profile.turns} 次, 生词 ${profile.vocab.total} 个`);
 

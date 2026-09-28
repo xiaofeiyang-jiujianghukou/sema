@@ -8,35 +8,35 @@
  */
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { requireAuth } from "./auth.js";
 
 const gradeSchema = z.object({
-  userId: z.string().min(1).max(64),
   grade: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 });
 
 export const vocabRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/vocab", async (req) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.query);
-    const cards = await app.vocabBook.list(userId);
+  app.get("/vocab", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const cards = await app.vocabBook.list(req.userId);
     return { cards, count: cards.length };
   });
 
-  app.get("/vocab/due", async (req) => {
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.query);
-    const cards = await app.vocabBook.due(userId);
+  app.get("/vocab/due", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const cards = await app.vocabBook.due(req.userId);
     return { cards, count: cards.length };
   });
 
-  app.post("/vocab", async (req, reply) => {
+  app.post("/vocab", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const body = z.object({
-      userId: z.string().min(1).max(64),
       term: z.string().min(1).max(80),
       translation: z.string().min(1).max(200),
       context: z.string().max(500).optional(),
       sourceSessionId: z.string().uuid().optional(),
     }).parse(req.body);
     const { card, created } = await app.vocabBook.add({
-      userId: body.userId,
+      userId: req.userId,
       term: body.term,
       translation: body.translation,
       ...(body.context !== undefined ? { context: body.context } : {}),
@@ -45,11 +45,11 @@ export const vocabRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(created ? 201 : 200).send({ card, created });
   });
 
-  app.post("/vocab/:cardId/lecture", async (req, reply) => {
+  app.post("/vocab/:cardId/lecture", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const { cardId } = z.object({ cardId: z.string().uuid() }).parse(req.params);
-    const { userId } = z.object({ userId: z.string().min(1).max(64) }).parse(req.body);
     try {
-      return await app.lectures.generate(userId, cardId);
+      return await app.lectures.generate(req.userId, cardId);
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code === "VOCAB_CARD_NOT_FOUND") return reply.code(404).send({ error: code, message: (err as Error).message });
@@ -59,11 +59,12 @@ export const vocabRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post("/vocab/:cardId/review", async (req, reply) => {
+  app.post("/vocab/:cardId/review", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const { cardId } = z.object({ cardId: z.string().uuid() }).parse(req.params);
     const body = gradeSchema.parse(req.body);
     try {
-      const result = await app.vocabBook.grade(body.userId, cardId, body.grade);
+      const result = await app.vocabBook.grade(req.userId, cardId, body.grade);
       return result;
     } catch (err) {
       if ((err as { code?: string }).code === "VOCAB_CARD_NOT_FOUND") {

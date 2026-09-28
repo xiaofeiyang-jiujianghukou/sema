@@ -14,7 +14,7 @@ import { RealtimeVoiceSession } from "../modules/realtime/session.js";
 
 const startSchema = z.object({
   type: z.literal("start"),
-  userId: z.string().min(1).max(64),
+  token: z.string().min(16).max(128),
   scenarioId: z.string().min(1).max(64),
 });
 const endSchema = z.object({ type: z.literal("end") });
@@ -67,8 +67,9 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
       }
 
       void (async () => {
-        const { userId, scenarioId } = startCheck.data;
+        const { token, scenarioId } = startCheck.data;
         try {
+          const userId = app.auth.userIdOf(token); // 无效令牌 → 抛 TOKEN_INVALID
           const started = await app.conversations.start(userId, scenarioId);
           sessionId = started.sessionId;
           session = new RealtimeVoiceSession(
@@ -108,7 +109,7 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
           send({ type: "audio-end" });
         } catch (err) {
           const code = (err as { code?: string }).code;
-          if (code === "SCENARIO_NOT_FOUND") {
+          if (code === "SCENARIO_NOT_FOUND" || code === "TOKEN_INVALID") {
             send({ type: "error", code, message: (err as Error).message });
           } else {
             send({ type: "error", message: err instanceof Error ? err.message : String(err) });

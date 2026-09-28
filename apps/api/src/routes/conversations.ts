@@ -6,10 +6,10 @@ import {
   ConversationNotFoundError,
 } from "../modules/conversation/service.js";
 import { ScenarioNotFoundError } from "../modules/conversation/service.js";
+import { requireAuth } from "./auth.js";
 import { InsufficientFundsError } from "../modules/wallet/service.js";
 
 const startSchema = z.object({
-  userId: z.string().min(1).max(64),
   scenarioId: z.string().min(1).max(64),
 });
 
@@ -25,13 +25,14 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
     return { scenarios: listScenarioSummaries(queryCheck.data.targetLang) };
   });
 
-  app.post("/", async (req, reply) => {
+  app.post("/", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID", message: "未登录" });
     const parsed = startSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } });
     }
     try {
-      const result = await app.conversations.start(parsed.data.userId, parsed.data.scenarioId);
+      const result = await app.conversations.start(req.userId, parsed.data.scenarioId);
       return reply.code(201).send(result);
     } catch (err) {
       if (err instanceof ScenarioNotFoundError) {
