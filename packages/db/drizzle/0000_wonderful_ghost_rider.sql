@@ -42,7 +42,11 @@ CREATE TABLE "sessions" (
 	"ended_at" timestamp with time zone,
 	"duration_seconds" integer,
 	"cents_charged" integer,
-	"status" text DEFAULT 'active' NOT NULL
+	"status" text DEFAULT 'active' NOT NULL,
+	"last_billed_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"billed_seq" integer DEFAULT 0 NOT NULL,
+	"history" text DEFAULT '[]' NOT NULL,
+	"meter_events" text DEFAULT '[]' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -71,7 +75,8 @@ CREATE TABLE "vocab_cards" (
 	"review_count" integer DEFAULT 0 NOT NULL,
 	"lecture" text,
 	"lecture_generated_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"source_session_id" text
 );
 --> statement-breakpoint
 CREATE TABLE "wallets" (

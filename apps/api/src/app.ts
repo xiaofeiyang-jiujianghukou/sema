@@ -27,6 +27,7 @@ import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
 import { MemoryWalletRepo } from "./modules/wallet/repo.js";
 import { DrizzleWalletRepo, DrizzleUserRepo } from "./modules/wallet/repo-pg.js";
+import { PgConversationRepo, PgVocabRepo, PgReviewRepo } from "./modules/wallet/repo-pg-domain.js";
 import { realtimeRoutes } from "./routes/realtime.js";
 import { reviewRoutes } from "./routes/review.js";
 import { statsRoutes } from "./routes/stats.js";
@@ -119,14 +120,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(cors, { origin: true });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
 
-  // 领域服务共享同一组仓储实例；Postgres 化逐仓储替换，领域逻辑不变
-  const conversationRepo = new MemoryConversationRepo();
-  const reviewRepo = new MemoryReviewRepo();
-  const vocabRepo = new MemoryVocabRepo();
-  const clock = options.now ?? Date.now;
-
-  // 仓储装配：生产（DATABASE_URL）→ Postgres 账本；开发/测试 → 内存实现
+  // 仓储装配：生产（DATABASE_URL）→ Postgres 全套；开发/测试 → 内存实现
   const dbPool = options.databaseUrl ? new Pool({ connectionString: options.databaseUrl }) : null;
+  const conversationRepo = dbPool ? new PgConversationRepo(dbPool) : new MemoryConversationRepo();
+  const reviewRepo = dbPool ? new PgReviewRepo(dbPool) : new MemoryReviewRepo();
+  const vocabRepo = dbPool ? new PgVocabRepo(dbPool) : new MemoryVocabRepo();
+  const clock = options.now ?? Date.now;
   const walletRepo = dbPool ? new DrizzleWalletRepo(dbPool) : new MemoryWalletRepo();
   const userRepo = dbPool ? new DrizzleUserRepo(dbPool) : new MemoryUserRepo();
 

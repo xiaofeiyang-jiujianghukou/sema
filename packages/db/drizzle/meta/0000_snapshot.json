@@ -1,5 +1,5 @@
 {
-  "id": "7ebc6eee-f609-41f5-adcb-16493dc7a4ec",
+  "id": "94a5fc2c-311f-4f42-83e5-99f686230f88",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -354,6 +354,34 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'active'"
+        },
+        "last_billed_at": {
+          "name": "last_billed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "billed_seq": {
+          "name": "billed_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "history": {
+          "name": "history",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
+        },
+        "meter_events": {
+          "name": "meter_events",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
         }
       },
       "indexes": {
@@ -579,6 +607,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "source_session_id": {
+          "name": "source_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {

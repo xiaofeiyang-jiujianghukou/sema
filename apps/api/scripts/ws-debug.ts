@@ -18,7 +18,8 @@ async function main(): Promise<void> {
   });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address() as AddressInfo;
-  await app.inject({ method: "POST", url: "/v1/wallet/ws_user/grant", payload: { cents: 300000, reason: "调试" } });
+  const wsUser = await createTestUser(app);
+  await app.inject({ method: "POST", url: `/v1/wallet/grant?userId=${wsUser.userId}`, payload: { cents: 300000, reason: "调试" } });
 
   const ws = new WebSocket(`ws://127.0.0.1:${address.port}/v1/realtime`);
   ws.on("message", (data, isBinary) => {
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
     else console.log("← JSON", (data as Buffer).toString().slice(0, 160));
   });
   await new Promise((r) => ws.once("open", r));
-  ws.send(JSON.stringify({ type: "start", userId: "ws_user", scenarioId: "coffee-order" }));
+  ws.send(JSON.stringify({ type: "start", token: wsUser.token, scenarioId: "coffee-order" }));
   await new Promise((r) => setTimeout(r, 200));
 
   const loud = Buffer.alloc(120 * 32);

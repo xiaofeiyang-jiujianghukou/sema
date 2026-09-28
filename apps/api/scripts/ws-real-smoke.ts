@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import WebSocket from "ws";
 import { ArkPlanTTSProvider, MockLLMProvider, TaskRouter } from "@sema/ai-core";
 import { loadEnvFiles } from "../src/env.js";
+import { createTestUser, TEST_SMS, TEST_CODE } from "../src/test-utils.js";
 import { buildApp } from "../src/app.js";
 
 async function main(): Promise<void> {
@@ -21,10 +22,12 @@ async function main(): Promise<void> {
       flagship: new MockLLMProvider("mock-flagship", () => "A latte with oat milk, excellent choice! For here or to go?"),
       cheap: new MockLLMProvider("mock-cheap"),
     }),
+    smsSender: TEST_SMS, smsCode: () => TEST_CODE,
   });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address() as AddressInfo;
-  await app.inject({ method: "POST", url: "/v1/wallet/smoke_user/grant", payload: { cents: 100000, reason: "真实语音冒烟" } });
+  const smokeUser = await createTestUser(app);
+  await app.inject({ method: "POST", url: `/v1/wallet/grant?userId=${smokeUser.userId}`, payload: { cents: 100000, reason: "真实语音冒烟" } });
 
   // 先合成「用户要说的话」（真实 TTS）， vad 断句由服务端完成
   const key = process.env.SEMA_LLM_API_KEY ?? "";
@@ -53,7 +56,7 @@ async function main(): Promise<void> {
     }
   });
   await new Promise((r) => ws.once("open", r));
-  ws.send(JSON.stringify({ type: "start", userId: "smoke_user", scenarioId: "coffee-order" }));
+  ws.send(JSON.stringify({ type: "start", token: smokeUser.token, scenarioId: "coffee-order" }));
   await new Promise<void>((resolve) => {
     const t = setInterval(() => {
       if (jsons.some((j) => j.type === "audio-end")) { clearInterval(t); resolve(); }

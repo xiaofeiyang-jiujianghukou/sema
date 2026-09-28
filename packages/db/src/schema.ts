@@ -107,6 +107,14 @@ export const sessions = pgTable(
     centsCharged: integer("cents_charged"),
     /** active | ended | aborted */
     status: text("status").notNull().default("active"),
+    /** 计费水位线：上次按秒累进结算到的时刻 */
+    lastBilledAtMs: timestamp("last_billed_at", { withTimezone: true }).notNull().defaultNow(),
+    /** 计费序号（幂等键的一部分） */
+    billedSeq: integer("billed_seq").notNull().default(0),
+    /** LLM 对话历史（JSON 数组：role/content） */
+    history: text("history").notNull().default("[]"),
+    /** 成本事件数组（JSON，分析口径） */
+    meterEvents: text("meter_events").notNull().default("[]"),
   },
   (t) => [index("sessions_user_idx").on(t.userId, t.startedAt)],
 );
@@ -134,7 +142,10 @@ export const vocabCards = pgTable(
     /** AI 精讲缓存（每词一次终身复用）：{definition, examples, nuance, memoryHook, collocations} */
     lecture: text("lecture"),
     lectureGeneratedAt: timestamp("lecture_generated_at", { withTimezone: true }),
+    /** 首次入本时间 */
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** 出处会话（复盘提取时有值） */
+    sourceSessionId: text("source_session_id"),
   },
   (t) => [
     uniqueIndex("vocab_user_term_uq").on(t.userId, t.term),

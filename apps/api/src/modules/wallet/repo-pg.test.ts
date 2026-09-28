@@ -15,7 +15,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { DrizzleUserRepo, DrizzleWalletRepo, BalanceConflictError } from "./repo-pg.js";
 
 const MIGRATION_SQL = readFileSync(
-  new URL("../../../../../packages/db/drizzle/0000_sweet_wolfpack.sql", import.meta.url),
+  new URL("../../../../../packages/db/drizzle/0000_wonderful_ghost_rider.sql", import.meta.url),
   "utf8",
 );
 

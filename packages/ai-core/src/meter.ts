@@ -27,6 +27,13 @@ export interface CostSummary {
 export class CostMeter {
   private readonly events: CostEvent[] = [];
 
+  /** 从序列化事件数组重建（PG 持久化用） */
+  static from(events: CostEvent[]): CostMeter {
+    const meter = new CostMeter();
+    meter.events.push(...events);
+    return meter;
+  }
+
   record(model: string, usage: Usage, opts: { measured?: boolean | undefined; tags?: Readonly<Record<string, string>> | undefined } = {}): CostEvent {
     const event: CostEvent = {
       model,
