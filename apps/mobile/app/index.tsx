@@ -38,7 +38,7 @@ export default function Index(): JSX.Element {
       <Text style={styles.tagline}>SEMA · 想说就说嘛</Text>
       <Text style={styles.slogan}>用一次，付一次 · 聊到停不下来</Text>
       <View style={styles.healthCard}>
-        <Text style={styles.healthTitle}>API（{API_BASE}）· build b7</Text>
+        <Text style={styles.healthTitle}>API（{API_BASE}）· build b8</Text>
         {health.status === "checking" && <ActivityIndicator color="#8fd3ff" />}
         {health.status === "up" && <Text style={styles.healthOk}>● 在线</Text>}
         {health.status === "down" && <Text style={styles.healthDown}>○ 未连接（{health.message}）</Text>}

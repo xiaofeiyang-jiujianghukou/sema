@@ -63,9 +63,15 @@ export function useVoiceMode(opts: {
   const pcmRef = useRef<Uint8Array[]>([]);
   const soundRef = useRef<Audio.Sound | null>(null);
   const speakingRef = useRef(false);
+  /** 播放代际：新一轮开始/停止时自增，作废所有在途播放链，防止两轮回答音频叠加 */
+  const playTokenRef = useRef(0);
+  /** 录音中 / 非接收窗口：丢弃旧回复的 TTS 尾流，防止污染下一轮音频缓冲 */
+  const discardChunksRef = useRef(false);
 
   const stopPlayback = useCallback(async (): Promise<void> => {
+    playTokenRef.current += 1; // 作废在途的 playPcm
     speakingRef.current = false;
+    discardChunksRef.current = true;
     const sound = soundRef.current;
     if (sound) {
       try {
@@ -79,6 +85,7 @@ export function useVoiceMode(opts: {
   }, []);
 
   const playPcm = useCallback(async (): Promise<void> => {
+    const token = playTokenRef.current; // 本轮播放的代际
     const pcm = pcmRef.current;
     pcmRef.current = [];
     if (pcm.length === 0) return;
@@ -92,9 +99,16 @@ export function useVoiceMode(opts: {
     const file = `${FileSystem.cacheDirectory}sema-tts-${Date.now()}.wav`;
     await FileSystem.writeAsStringAsync(file, bytesToBase64(pcmToWav(merged)), { encoding: FileSystem.EncodingType.Base64 });
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri: file }, { shouldPlay: true }, undefined, false);
+      const { sound } = await Audio.Sound.createAsync({ uri: file }, { shouldPlay: false }, undefined, false);
+      if (token !== playTokenRef.current) {
+        // 等待创建期间已被新一轮取代（用户又按住了说话）：直接丢弃
+        await sound.unloadAsync();
+        void FileSystem.deleteAsync(file, { idempotent: true });
+        return;
+      }
       soundRef.current = sound;
       speakingRef.current = true;
+      await sound.playAsync();
       sound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded && status.error) {
           opts.onError(`播放失败: ${status.error}`);
@@ -124,12 +138,18 @@ export function useVoiceMode(opts: {
     const client = new VoiceClient({
       onReady: () => setState("listening"),
       onUserUtterance: (text) => opts.onEvent({ kind: "user", text }),
-      onReplyStart: () => setState("thinking"),
+      onReplyStart: () => {
+        discardChunksRef.current = false; // 新回复开始：重新接流
+        pcmRef.current = [];              // 只缓冲本轮音频
+        setState("thinking");
+      },
       onReply: (info) => opts.onEvent({ kind: "assistant", text: info.reply, chargedCents: info.chargedCents, balanceCredits: info.balanceCredits }),
       onAudioChunk: (chunk) => {
+        if (discardChunksRef.current) return; // 录音中/旧回复尾流：丢弃
         pcmRef.current.push(new Uint8Array(chunk));
       },
       onAudioEnd: () => {
+        discardChunksRef.current = true;
         setState("speaking");
         void playPcm();
       },

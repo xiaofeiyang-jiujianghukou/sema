@@ -35,6 +35,7 @@ export default function Chat(): JSX.Element {
   const [ending, setEnding] = useState(false);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [pressing, setPressing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
@@ -47,7 +48,14 @@ export default function Chat(): JSX.Element {
       if (ev.kind === "assistant") setSessionTotal((t) => t + (ev.chargedCents ?? 0));
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     },
-    onError: (message) => Alert.alert("语音提示", message),
+    onError: (message) => {
+      if (message.startsWith("没听清")) {
+        setVoiceHint(message);
+        setTimeout(() => setVoiceHint(null), 3000);
+        return;
+      }
+      Alert.alert("语音提示", message);
+    },
   });
 
   // 语音默认开启：进对话即接通（像打电话，按秒计费，静音也计时；闲置超 5 分钟的空档服务端不计时）
@@ -144,7 +152,9 @@ export default function Chat(): JSX.Element {
         >
           <Text style={styles.voiceToggleText}>{voiceOn ? "语音中" : "开语音"}</Text>
         </Pressable>
-        <Text style={styles.voiceState}>{voiceOn ? VOICE_STATE_TEXT[voice.state] : VOICE_STATE_TEXT.off}</Text>
+        <Text style={[styles.voiceState, voiceHint && styles.voiceHintText]}>
+          {voiceHint ?? (voiceOn ? VOICE_STATE_TEXT[voice.state] : VOICE_STATE_TEXT.off)}
+        </Text>
       </View>
 
       <Pressable
@@ -189,6 +199,7 @@ const styles = StyleSheet.create({
   voiceBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingTop: 8 },
   voiceToggle: { backgroundColor: "#12314c", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   voiceOn: { backgroundColor: "#1a73e8" },
+  voiceHintText: { color: "#e0b76a" },
   voiceToggleText: { color: "#f2f7fa", fontSize: 14, fontWeight: "600" },
   voiceState: { color: "#7d9ab0", fontSize: 12 },
   ptt: { marginHorizontal: 14, marginTop: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: "#12314c", alignItems: "center" },
