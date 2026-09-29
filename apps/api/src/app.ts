@@ -210,8 +210,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS level text");
     await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS levels jsonb");
     await dbPool.query(
-      "CREATE TABLE IF NOT EXISTS user_challenges (user_id text NOT NULL, challenge_id text NOT NULL, completed_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (user_id, challenge_id))",
+      "CREATE TABLE IF NOT EXISTS user_challenges (user_id text NOT NULL, challenge_id text NOT NULL, stars integer NOT NULL DEFAULT 0, paid_cents integer NOT NULL DEFAULT 0, completed_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (user_id, challenge_id))",
     );
+    await dbPool.query("ALTER TABLE user_challenges ADD COLUMN IF NOT EXISTS stars integer NOT NULL DEFAULT 0");
+    await dbPool.query("ALTER TABLE user_challenges ADD COLUMN IF NOT EXISTS paid_cents integer NOT NULL DEFAULT 0");
     await auth.attachTokenStore({
       async put(token, userId, expiresAtMs) {
         await dbPool.query(

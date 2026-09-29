@@ -142,11 +142,14 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
   /** 初级过关领取（matched ≥ 门槛后） */
   app.post("/:id/claim", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
-    const parsed = z.object({ matched: z.number().int().min(0).max(10) }).safeParse(req.body);
+    const parsed = z.object({ matched: z.number().int().min(0).max(30), firstTry: z.number().int().min(0).max(30).optional() }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     try {
-      const { threshold } = await levelOf(req.userId, (req.params as { id: string }).id);
-      const res = await app.challenges.claimBeginner(req.userId, (req.params as { id: string }).id, parsed.data.matched, CHALLENGES, threshold);
+      const id = (req.params as { id: string }).id;
+      const { threshold, level } = await levelOf(req.userId, id);
+      // total = 本关题目总数（服务端权威），星级与奖励缩放都在服务端算
+      const total = app.challenges.exercises(id, level).length;
+      const res = await app.challenges.claimBeginner(req.userId, id, parsed.data.matched, CHALLENGES, threshold, parsed.data.firstTry, total);
       const wallet = await app.wallets.getWallet(req.userId);
       return { ...res, balanceCredits: wallet.balanceCredits };
     } catch (err) {

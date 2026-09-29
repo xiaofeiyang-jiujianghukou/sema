@@ -49,6 +49,8 @@ export interface ChallengeProgress {
   rewardCents: number;
   requiredTurns: number;
   state: "completed" | "open" | "locked";
+  /** 历史最高星级 0-3 */
+  stars: number;
   words: ChallengeWordInfo[] | null;
   scenarioId: string | null;
 }
@@ -274,10 +276,10 @@ export const api = {
       token,
       body: JSON.stringify({ index, left, right }),
     }),
-  challengeClaim: (token: string, id: string, matched: number) =>
-    request<{ rewardedCents: number; alreadyDone: boolean; balanceCredits: string }>(
+  challengeClaim: (token: string, id: string, matched: number, firstTry: number) =>
+    request<{ rewardedCents: number; alreadyDone: boolean; stars: number; balanceCredits: string }>(
       `/v1/challenges/${id}/claim`,
-      { method: "POST", token, body: JSON.stringify({ matched }) },
+      { method: "POST", token, body: JSON.stringify({ matched, firstTry }) },
     ),
   challengeSessionAttempt: (token: string, sessionId: string) =>
     request<{ completed: string[] }>("/v1/challenges/session-attempt", {

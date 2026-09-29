@@ -83,7 +83,9 @@ export default function Course(): JSX.Element {
         nextLesson ? (
           <Pressable style={styles.continueBtn} onPress={() => router.push({ pathname: "/challenge/[id]", params: { id: nextLesson.id } })}>
             <Text style={styles.continueTitle}>{nextLesson.title}</Text>
-            <Text style={styles.continueSub}>已过 {doneCount}/{challenges.length} 关 · 点这里继续</Text>
+            <Text style={styles.continueSub}>
+              已过 {doneCount}/{challenges.length} 关 · ⭐{challenges.filter((c) => c.state === "completed").reduce((sum, c) => sum + (c.stars ?? 0), 0)}/{challenges.length * 3} · 点这里继续
+            </Text>
           </Pressable>
         ) : (
           <View style={styles.progressCard}>
@@ -111,9 +113,10 @@ export default function Course(): JSX.Element {
                 router.push({ pathname: "/challenge/[id]", params: { id: c.id } });
               }}
             >
-              <Text style={styles.stateIcon}>{c.state === "completed" ? "✅" : c.state === "locked" ? "🔒" : "▶️"}</Text>
+              <Text style={styles.stateIcon}>{c.state === "completed" ? (c.stars >= 3 ? "⭐" : "✅") : c.state === "locked" ? "🔒" : "▶️"}</Text>
               <Text style={[styles.cardTitle, c.state === "locked" && styles.dimText, { flex: 1 }]}>{c.title}</Text>
-              <Text style={styles.reward}>+{c.rewardCents}厘</Text>
+              {c.state === "completed" && <Text style={styles.starText}>{"★".repeat(c.stars)}{"☆".repeat(3 - c.stars)}</Text>}
+              {c.state !== "completed" && <Text style={styles.reward}>+{c.rewardCents}厘</Text>}
             </Pressable>
           </View>
         );
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "600" },
   dimText: { color: "#5f7d92" },
   reward: { color: "#7ee2a8", fontSize: 13, fontWeight: "700" },
+  starText: { color: "#ffd24d", fontSize: 12 },
   browseBtn: { alignItems: "center", paddingVertical: 12 },
   browseText: { color: "#4da3ff", fontSize: 13 },
 });
