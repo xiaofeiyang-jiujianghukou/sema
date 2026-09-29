@@ -146,17 +146,21 @@ export class RealtimeVoiceSession {
     this.speechFrames = 0;
     this.silenceFrames = 0;
 
+    // 先增益再判定：手机麦克风电平偏低，短单词（如 "milk"）在原始电平下
+    // 只有寥寥几帧越阈，会被误判「没听清」；放大后判定与识别共用同一增益
+    const { boosted } = this.applyAgc(pcm);
+
     // 含语音才送识别：20ms 帧、能量越阈计数，门槛与流式 VAD 一致
     let speechFrames = 0;
     const frameBytes = 640;
-    for (let off = 0; off + frameBytes <= pcm.length; off += frameBytes) {
-      if (this.rms(pcm.subarray(off, off + frameBytes)) >= this.vad.rmsThreshold) speechFrames += 1;
+    for (let off = 0; off + frameBytes <= boosted.length; off += frameBytes) {
+      if (this.rms(boosted.subarray(off, off + frameBytes)) >= this.vad.rmsThreshold) speechFrames += 1;
     }
     if (speechFrames < this.vad.minSpeechFrames) {
       this.callbacks.onError?.("没听清，请靠近麦克风再说一次");
       return;
     }
-    void this.handleSegment(pcm);
+    void this.handleSegment(boosted);
   }
 
   /** WS 关闭时调用：放弃进行中的工作 */
