@@ -262,10 +262,12 @@ export class RealtimeVoiceSession {
       sampleRate: 16_000,
       ...(this.speechOptions?.language ? { language: this.speechOptions.language } : {}),
     });
+    let lastPartial = "";
     const collecting = (async () => {
       const parts: string[] = [];
       for await (const segmentResult of recognizer.results()) {
         if (segmentResult.definite && segmentResult.text) parts.push(segmentResult.text);
+        else if (segmentResult.text) lastPartial = segmentResult.text;
       }
       return parts;
     })();
@@ -280,8 +282,7 @@ export class RealtimeVoiceSession {
     recognizer.abort();
 
     if (parts.length > 0) return parts.join("");
-    // 无定稿时兜底：从结果流里拿不到——整段一次性已推完，返回空
-    return "";
+    return lastPartial; // 无定稿时兜底：取最后一次累积快照（仍优于丢弃）
   }
 
   private rms(chunk: Buffer): number {
