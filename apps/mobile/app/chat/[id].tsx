@@ -6,7 +6,7 @@ import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ApiError, api, type EndResult } from "../../lib/api";
+import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useVoiceMode, type VoiceState } from "../../lib/use-voice-mode";
 
@@ -201,15 +201,18 @@ export default function Chat(): JSX.Element {
     setEnding(true);
     try {
       if (voiceOn) {
-        voice.stop(); // 关闭 WS；复盘取已有会话，幂等
+        voice.stop(); // 关闭语音 WS（服务端只中止实时流，会话仍活跃）
         setVoiceOn(false);
-        router.replace({ pathname: "/review/[id]", params: { id } });
-      } else {
-        const summary: EndResult = await api.endConversation(token, id);
-        Alert.alert("会话已结束", `本次 ${summary.durationSeconds} 秒 · ${summary.turns} 轮 · 合计 ${summary.totalBilledCents} 厘`, [
-          { text: "看复盘报告", onPress: () => router.replace({ pathname: "/review/[id]", params: { id } }) },
-        ]);
       }
+      try {
+        // 「结束并复盘」必须真正结束会话——复盘服务只接受已结束的会话。
+        // 旧语音分支漏掉了这步，导致 409 CONVERSATION_NOT_ENDED
+        await api.endConversation(token, id);
+      } catch (endErr) {
+        // 重复点击/已结束：幂等放行
+        if (!(endErr instanceof ApiError && endErr.code === "CONVERSATION_ENDED")) throw endErr;
+      }
+      router.replace({ pathname: "/review/[id]", params: { id } });
     } catch (err) {
       Alert.alert("结束失败", err instanceof ApiError ? err.message : String(err));
       setEnding(false);
