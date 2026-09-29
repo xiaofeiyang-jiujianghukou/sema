@@ -46,6 +46,7 @@ export default function ChallengePlay(): JSX.Element {
   const [challenge, setChallenge] = useState<ChallengeProgress | null>(null);
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
   const [threshold, setThreshold] = useState(7);
+  const [seed, setSeed] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [exIdx, setExIdx] = useState(0);
@@ -86,6 +87,7 @@ export default function ChallengePlay(): JSX.Element {
           if (cancelled) return;
           setExercises(ex.exercises);
           setThreshold(ex.threshold);
+          setSeed(ex.seed);
         }
       } catch (err) {
         Alert.alert("加载失败", err instanceof Error ? err.message : String(err));
@@ -130,7 +132,7 @@ export default function ChallengePlay(): JSX.Element {
     if (!token || !id || busy || feedback) return;
     setBusy(true);
     try {
-      const res = await api.challengeCheck(token, id, exIdx, answer);
+      const res = await api.challengeCheck(token, id, exIdx, answer, seed);
       if (res.ok) {
         if (firstTryRef.current[exIdx] === undefined) firstTryRef.current[exIdx] = true;
         setFeedback({ ok: true, why: res.why });
@@ -149,7 +151,7 @@ export default function ChallengePlay(): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [token, id, busy, feedback, exIdx, hits, challenge, threshold, markWrong, nextExercise, finishClaim]);
+  }, [token, id, busy, feedback, exIdx, hits, challenge, threshold, seed, markWrong, nextExercise, finishClaim]);
 
   const revealAnswer = useCallback((): void => {
     if (!exercises) return;
@@ -162,7 +164,7 @@ export default function ChallengePlay(): JSX.Element {
     }
     void (async () => {
       try {
-        const res = await api.challengeCheck(token!, id!, exIdx, "__reveal__");
+        const res = await api.challengeCheck(token!, id!, exIdx, "__reveal__", seed);
         correct = res.correct ?? correct;
         why = res.why;
       } catch { /* 保持本地兜底 */ }
@@ -171,7 +173,7 @@ export default function ChallengePlay(): JSX.Element {
       setHits((h) => h + 1);
       setTimeout(() => nextExercise(true), 1600);
     })();
-  }, [exercises, exIdx, token, id, nextExercise]);
+  }, [exercises, exIdx, token, id, seed, nextExercise]);
 
   // ══ 跟读：按住说话、松开判定；上传失败保留重传 ══
   const uploadWord = useCallback(async (base64: string, wordIndex: number): Promise<void> => {
@@ -314,7 +316,7 @@ export default function ChallengePlay(): JSX.Element {
     if (Object.values(matchLocked).includes(ri)) return;
     setBusy(true);
     try {
-      const res = await api.challengeCheckPair(token, id, exIdx, matchSel, ri);
+      const res = await api.challengeCheckPair(token, id, exIdx, matchSel, ri, seed);
       if (res.ok) {
         const locked = { ...matchLocked, [matchSel]: ri };
         setMatchLocked(locked);
@@ -335,7 +337,7 @@ export default function ChallengePlay(): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [token, id, matchSel, busy, matchLocked, exercises, exIdx, markWrong, submit]);
+  }, [token, id, matchSel, busy, matchLocked, exercises, exIdx, seed, markWrong, submit]);
 
   if (loading || !challenge) {
     return <View style={styles.center}><ActivityIndicator color="#8fd3ff" /></View>;
@@ -411,6 +413,7 @@ export default function ChallengePlay(): JSX.Element {
             const ex2 = await api.challengeExercises(token, id);
             setExercises(ex2.exercises);
             setThreshold(ex2.threshold);
+            setSeed(ex2.seed);
           })();
         }}>
           <Text style={styles.bigBtnText}>再来一轮</Text>
@@ -508,7 +511,7 @@ export default function ChallengePlay(): JSX.Element {
                         ]}
                         onPress={() => tapLeft(li)}
                       >
-                        <Text style={[styles.matchText, locked && { color, fontWeight: "700" }]}>{l}</Text>
+                        <Text style={[styles.matchText, matchSel === li && { color: "#ffffff", fontWeight: "800" }]}>{l}</Text>
                       </Pressable>
                     </Shake>
                   );
@@ -653,7 +656,7 @@ const styles = StyleSheet.create({
   matchRow: { flexDirection: "row", gap: 10 },
   matchCol: { flex: 1, gap: 8 },
   matchItem: { borderRadius: 10, borderWidth: 1, borderColor: "#2a4a66", backgroundColor: "#0d2233", paddingVertical: 10, paddingHorizontal: 8, alignItems: "center" },
-  matchItemSel: { borderColor: "#4da3ff", backgroundColor: "#153a5c" },
+  matchItemSel: { borderColor: "#4da3ff", borderWidth: 2, backgroundColor: "#1a5c94", shadowColor: "#4da3ff", shadowRadius: 6, elevation: 3 },
   matchItemLocked: { opacity: 0.3, borderColor: "#3a6b8f" },
   matchText: { color: "#f2f7fa", fontSize: 13, textAlign: "center" },
   feedback: { borderRadius: 12, padding: 12 },

@@ -233,11 +233,12 @@ export type ExerciseLevel = "zero" | "basic" | "pro";
 
 /** 生成一套混合练习（跟读×2 听音辨词×1 选择×2 判断×2 完形×1 造句×1 连线×1 = 10 题）
  *  难度随水平：入门 5 选项/进阶 6 选项；进阶干扰项来自全书、跟读卡不显示罗马音 */
-export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"): Exercise[] {
+export function unitExercises(challengeId: string, level: ExerciseLevel = "zero", seed = 0): Exercise[] {
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");
   const unit = getUnit(unitId);
   if (!unit) throw new Error("课程单元不存在");
-  const rand = seededRandom(challengeId);
+  // 种子 = 关卡 + 每局随机数：同一关卡每局出不同题，判题用同一局种子复现
+  const rand = seededRandom(`${challengeId}:${seed}`);
   const words = unit.words;
   const optN = level === "pro" ? 6 : level === "basic" ? 5 : 4;
   const pool = level === "pro" ? getBookWords(unitId) : words;
@@ -304,9 +305,9 @@ export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"
 }
 
 /** 判题：按题型重算正确答案（答案不发给客户端） */
-export function checkExercise(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero"): CheckResult {
+export function checkExercise(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero", seed = 0): CheckResult {
   // 必须与出题同一 level 重新生成同一序列——否则索引错位（egg 判成 juice 事故根源）
-  const exercises = unitExercises(challengeId, level);
+  const exercises = unitExercises(challengeId, level, seed);
   const ex = exercises[index];
   if (!ex) throw new Error("题目序号越界");
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");
@@ -350,8 +351,8 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
 }
 
 /** 连线逐对判定：left/right 为题目内下标；正确→锁定，错误→❗重选 */
-export function checkPair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero"): CheckResult {
-  const exercises = unitExercises(challengeId, level);
+export function checkPair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero", seed = 0): CheckResult {
+  const exercises = unitExercises(challengeId, level, seed);
   const ex = exercises[index];
   if (!ex || ex.type !== "match") throw new Error("该题不是连线题");
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");

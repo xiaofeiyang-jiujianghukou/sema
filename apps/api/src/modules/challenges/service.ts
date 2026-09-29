@@ -163,18 +163,18 @@ export class ChallengeService {
   constructor(private readonly deps: ChallengeDeps) {}
 
   /** 混合练习题目（答案不下发，判题在服务端；难度随水平） */
-  exercises(challengeId: string, level: ExerciseLevel = "zero"): Exercise[] {
-    return unitExercises(challengeId, level);
+  exercises(challengeId: string, level: ExerciseLevel = "zero", seed = 0): Exercise[] {
+    return unitExercises(challengeId, level, seed);
   }
 
   /** 混合练习判题（read 题走 verifyWord 音频通道；level 与出题一致） */
-  check(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero"): CheckResult {
-    return checkExercise(challengeId, index, answer, level);
+  check(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero", seed = 0): CheckResult {
+    return checkExercise(challengeId, index, answer, level, seed);
   }
 
   /** 连线逐对判定 */
-  pair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero"): CheckResult {
-    return checkPair(challengeId, index, left, right, level);
+  pair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero", seed = 0): CheckResult {
+    return checkPair(challengeId, index, left, right, level, seed);
   }
 
   async list(userId: string, lang: TargetLang, all: Challenge[]): Promise<ChallengeProgress[]> {
