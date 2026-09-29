@@ -255,6 +255,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const raw = await aacToPcm(Buffer.from(audioBase64, "base64"));
       const pcm = applyAgc(raw);
       app.log.info({ rmsRaw: Math.round(rmsOf(raw)), rmsAgc: Math.round(rmsOf(pcm)), bytes: pcm.length }, "闯关转写电平诊断");
+      if (rmsOf(raw) === 0) {
+        // 纯静音：落盘原始音频 + PCM，供本地排查（文件名带时间戳，自动清理旧件）
+        try {
+          const fs = await import("node:fs/promises");
+          const stamp = Date.now();
+          await fs.writeFile(`/tmp/sema-silent-${stamp}.aac`, Buffer.from(audioBase64, "base64"));
+          await fs.writeFile(`/tmp/sema-silent-${stamp}.pcm`, raw);
+          app.log.warn({ aac: `/tmp/sema-silent-${stamp}.aac` }, "收到纯静音录音，已落盘");
+        } catch { /* 诊断失败不影响主流程 */ }
+      }
       const recognizer = (options.speech ?? app.speech).asr.createRecognizer({
         sampleRate: 16_000,
         language: ASR_LANGUAGE[lang],
