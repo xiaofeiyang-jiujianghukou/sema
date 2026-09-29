@@ -170,6 +170,12 @@ export function useVoiceMode(opts: {
     await stopPlayback();
     pcmRef.current = [];
     try {
+      // expo-av 要求显式请求麦克风权限（Expo Go 不自动弹）
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        opts.onError("麦克风权限被拒绝：请在系统设置 → 应用 → Expo Go → 权限中允许麦克风");
+        return;
+      }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
