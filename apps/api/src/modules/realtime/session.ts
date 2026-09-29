@@ -166,6 +166,23 @@ export class RealtimeVoiceSession {
   }
 
   /** 语音段 → ASR → LLM（计费）→ TTS → 下行 */
+  /**
+   * AGC 自动增益：手机麦克风采音普遍偏低（实测 RMS 865~1442，ASR 友好区间 2000+），
+   * 上送识别前放大到目标电平，峰值削波保护（增益上限 ×4）。
+   */
+  private applyAgc(segment: Buffer): { boosted: Buffer; gain: number } {
+    const { rms } = this.audioStats(segment);
+    if (rms < 100) return { boosted: segment, gain: 1 }; // 近乎静音，不放大噪声
+    const gain = Math.min(4, Math.max(1, 4000 / rms));
+    if (gain <= 1.05) return { boosted: segment, gain: 1 };
+    const out = Buffer.alloc(segment.length);
+    for (let i = 0; i + 1 < segment.length; i += 2) {
+      const v = Math.max(-32768, Math.min(32767, Math.round(segment.readInt16LE(i) * gain)));
+      out.writeInt16LE(v, i);
+    }
+    return { boosted: out, gain: Math.round(gain * 10) / 10 };
+  }
+
   /** 段音频电平统计：诊断麦克风采音是否偏低（影响 ASR 准确率） */
   private audioStats(segment: Buffer): { rms: number; peak: number } {
     let sumSq = 0;
@@ -184,11 +201,10 @@ export class RealtimeVoiceSession {
   private async handleSegment(segment: Buffer): Promise<void> {
     if (this.closed || segment.length === 0) return;
     try {
-      {
-        const st = this.audioStats(segment);
-        console.log(`[realtime] 段音频 ${(segment.length / 2 / 16000).toFixed(2)}s 电平 RMS=${st.rms} 峰值=${st.peak}（参考：良好 2000-15000，偏低 <1000）`);
-      }
-      const text = await this.transcribe(segment);
+      const st = this.audioStats(segment);
+      const { boosted, gain } = this.applyAgc(segment);
+      console.log(`[realtime] 段音频 ${(segment.length / 2 / 16000).toFixed(2)}s 电平 RMS=${st.rms} 峰值=${st.peak}${gain > 1 ? ` → AGC ×${gain} → RMS'=${this.audioStats(boosted).rms}` : "（电平充足，无需增益）"}`);
+      const text = await this.transcribe(boosted);
       if (this.closed) return;
       if (text.trim().length === 0) {
         this.callbacks.onError?.("没听清，请再说一次");

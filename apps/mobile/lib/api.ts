@@ -118,7 +118,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit & { token?: string | null } = {}): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = init.body ? { "Content-Type": "application/json" } : {};
   if (init.token) headers.Authorization = `Bearer ${init.token}`;
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
