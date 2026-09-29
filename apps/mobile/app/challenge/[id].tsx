@@ -109,10 +109,28 @@ export default function ChallengePlay(): JSX.Element {
     }
   }, [token, id, exercises, exIdx, sound]);
 
+  // ══ 听句选词：播放整句例句 ══
+  const playCloze = useCallback(async (): Promise<void> => {
+    if (!token || !id) return;
+    const ex = exercises?.[exIdx];
+    if (!ex || ex.type !== "cloze") return;
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false, playThroughEarpieceAndroid: false });
+      const res = await api.challengeAudio(token, id, ex.wordIndex, true);
+      await sound?.unloadAsync();
+      const { sound: snd } = await Audio.Sound.createAsync({ uri: `data:audio/mpeg;base64,${res.audioBase64}` });
+      setSound(snd);
+      await snd.playAsync();
+    } catch (err) {
+      Alert.alert("播放失败", err instanceof ApiError ? err.message : String(err));
+    }
+  }, [token, id, exercises, exIdx, sound]);
+
   // 听音题出现时自动播放一次
   useEffect(() => {
     const ex = exercises?.[exIdx];
     if (ex?.type === "listen") void playListen();
+    if (ex?.type === "cloze") void playCloze();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercises, exIdx]);
 
@@ -289,6 +307,14 @@ export default function ChallengePlay(): JSX.Element {
             </Pressable>
           </View>
         )}
+        {ex.type === "cloze" && (
+          <View style={styles.card}>
+            <Text style={styles.label}>听句选词：AI 读了一句话，句子里有哪个词？</Text>
+            <Pressable style={styles.playBtn} disabled={busy || !!feedback} onPress={() => void playCloze()}>
+              <Text style={styles.playText}>🔊 再听一遍</Text>
+            </Pressable>
+          </View>
+        )}
         {ex.type === "tf" && (
           <View style={styles.card}>
             <Text style={styles.label}>判断</Text>
@@ -304,16 +330,24 @@ export default function ChallengePlay(): JSX.Element {
           ))}
         </View>
       )}
-      {ex.type === "cloze" && (
-          <View style={styles.card}>
-            <Text style={styles.label}>完形填空</Text>
-            <Text style={styles.prompt}>{ex.sentence}</Text>
-          </View>
-        )}
         {ex.type === "build" && (
           <View style={styles.card}>
-            <Text style={styles.label}>造句填空</Text>
-            <Text style={styles.prompt}>{ex.sentence}</Text>
+            <Text style={styles.label}>造句：把句子拼出来</Text>
+            <View style={styles.buildArea}>
+              {buildOrder.length === 0 && <Text style={styles.subWord}>点下面的词块组句子</Text>}
+              {buildOrder.map((ti, i) => (
+                <Pressable key={`${ti}-${i}`} style={styles.tileOn} onPress={() => setBuildOrder((o) => o.filter((_, j) => j !== i))}>
+                  <Text style={styles.tileText}>{ex.tiles[ti]}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.tileRow}>
+              {ex.tiles.map((t, i) => (
+                <Pressable key={`${t}-${i}`} style={[styles.tile, buildOrder.includes(i) && styles.tileUsed]} onPress={() => { if (!buildOrder.includes(i)) setBuildOrder((o) => [...o, i]); }}>
+                  <Text style={styles.tileText}>{t}</Text>
+                </Pressable>
+              ))}
+            </View>
             <Text style={styles.subWord}>提示：{ex.hint}</Text>
           </View>
         )}
@@ -410,7 +444,7 @@ export default function ChallengePlay(): JSX.Element {
         <View style={styles.optionGrid}>
           {ex.options.map((o) => (
             <Pressable key={o} style={styles.optionBtn} disabled={busy || !!feedback} onPress={() => void submit(o)}>
-              <Text style={styles.optionText}>{o}</Text>
+              <Text style={[styles.optionText, { fontSize: 16, fontWeight: "600" }]}>{o}</Text>
             </Pressable>
           ))}
         </View>

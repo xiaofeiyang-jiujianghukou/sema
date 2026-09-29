@@ -139,7 +139,7 @@ export type Exercise =
   | { type: "read"; wordIndex: number; word: string; display: string }
   | { type: "mc"; prompt: string; options: string[]; wordIndex: number }
   | { type: "tf"; prompt: string; wordIndex: number; shown: string }
-  | { type: "cloze"; sentence: string; options: string[]; wordIndex: number }
+  | { type: "cloze"; wordIndex: number; options: string[] }
   | { type: "build"; tiles: string[]; hint: string; sentence: string }
   | { type: "listen"; wordIndex: number; options: string[] }
   | { type: "match"; left: string[]; right: string[]; wordIndices: number[] };
@@ -269,24 +269,12 @@ export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"
     const shown = truthful ? words[wi]!.meaning : other.meaning;
     out.push({ type: "tf", prompt: `「${words[wi]!.term}」的意思是「${shown}」？`, wordIndex: wi, shown });
   }
-  // 完形填空 ×2：该词的例句挖空——数字词排除（It is _ o'clock 等空位多解，
-  // 强迫唯一答案会是坏题）；候选不足用补充选择题（词↔义）填位
-  const isNumberWord = (m: string): boolean => /[0-9０-９]/.test(m) || /^[一二三四五六七八九十百千两]/.test(m.trim());
-  const mcUsed = new Set(out.filter((e) => e.type === "mc").map((e) => (e as { wordIndex: number }).wordIndex));
-  const clozePool = shuffled(words.map((_, i) => i).filter((i) => words[i]!.example.includes(words[i]!.term) && !isNumberWord(words[i]!.meaning)), rand);
-  const clozeCount = Math.min(2, clozePool.length);
-  for (const wi of clozePool.slice(0, clozeCount)) {
-    mcUsed.add(wi);
+  // 听句选词 ×2：AI 读完整例句 → 选句中出现的词（音频即唯一解，
+  // 从机制上排除 "We have _ for dinner" 任何食物都对的多解问题）
+  for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
     const w = words[wi]!;
     const distractors = pickDistractors(pool, w.term, (x) => x.term, optN - 1, rand);
-    out.push({ type: "cloze", sentence: w.example.replace(w.term, "____"), options: shuffled([w.term, ...distractors], rand), wordIndex: wi });
-  }
-  const needMc = 2 - clozeCount;
-  const mcExtras = shuffled(words.map((_, i) => i).filter((i) => !mcUsed.has(i)), rand).slice(0, needMc);
-  for (const wi of mcExtras) {
-    const w = words[wi]!;
-    const distractors = pickDistractors(pool, w.meaning, (x) => x.meaning, optN - 1, rand);
-    out.push({ type: "mc", prompt: `「${w.term}」的意思是？`, options: shuffled([w.meaning, ...distractors], rand), wordIndex: wi });
+    out.push({ type: "cloze", wordIndex: wi, options: shuffled([w.term, ...distractors], rand) });
   }
   // 造句 ×1：例句切词块（无标点）拼装还原
   const pIdx = Math.floor(rand() * unit.patterns.length);
@@ -320,7 +308,7 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
     case "cloze": {
       const w = unit.words[ex.wordIndex]!;
       const ok = normEx(String(answer)) === normEx(w.term);
-      return { ok, correct: w.term, why: `完整句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
+      return { ok, correct: w.term, why: `句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
       const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);

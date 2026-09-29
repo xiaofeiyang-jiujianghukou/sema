@@ -4,6 +4,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { levelFor } from "../modules/auth/service.js";
+import { getUnit } from "../content/challenges.js";
 import { CHALLENGES, challengesForLang } from "../content/challenges.js";
 import type { ChallengeService } from "../modules/challenges/service.js";
 
@@ -63,19 +64,23 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
   const audioCache = new Map<string, string>();
   app.post("/:id/audio", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
-    const parsed = z.object({ index: z.number().int().min(0).max(49) }).safeParse(req.body);
+    const parsed = z.object({ index: z.number().int().min(0).max(49), sentence: z.boolean().optional() }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     try {
       const id = (req.params as { id: string }).id;
-      const cacheKey = `${id}:${parsed.data.index}`;
+      const sentence = parsed.data.sentence === true;
+      const cacheKey = `${id}:${parsed.data.index}:${sentence ? 1 : 0}`;
       const cached = audioCache.get(cacheKey);
       if (cached) return { audioBase64: cached };
       const c = CHALLENGES.find((x) => x.id === id);
       const word = c?.words?.[parsed.data.index];
       if (!c || !word) return reply.code(400).send({ error: "词不存在" });
+      // 整句读例句（听句选词题）；单词读词（听音辨词题）
+      const unit = getUnit(id.replace(/-(words|dialogue)$/, ""));
+      const text = sentence ? unit?.words[parsed.data.index]?.example ?? word.text : word.text;
       const speech = app.speechForLang(c.lang);
       let buf = Buffer.alloc(0);
-      for await (const chunk of app.speech.tts.synthesize(word.text, { format: "mp3", ...(speech.speaker ? { speaker: speech.speaker } : {}) })) {
+      for await (const chunk of app.speech.tts.synthesize(text, { format: "mp3", ...(speech.speaker ? { speaker: speech.speaker } : {}) })) {
         buf = Buffer.concat([buf, chunk]);
       }
       const audioBase64 = buf.toString("base64");
