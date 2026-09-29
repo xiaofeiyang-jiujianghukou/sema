@@ -19,6 +19,10 @@ interface VoiceEvent {
   text: string;
   chargedCents?: number;
   balanceCredits?: string;
+  /** 零基础/入门模式：AI 回复的中文翻译 */
+  translation?: string;
+  /** 零基础模式：建议用户此刻说的一句目标语言 */
+  suggestion?: string;
 }
 
 const RECORDING_OPTIONS: Audio.RecordingOptions = {
@@ -146,7 +150,14 @@ export function useVoiceMode(opts: {
         pcmRef.current = [];              // 只缓冲本轮音频
         setState("thinking");
       },
-      onReply: (info) => opts.onEvent({ kind: "assistant", text: info.reply, chargedCents: info.chargedCents, balanceCredits: info.balanceCredits }),
+      onReply: (info) => opts.onEvent({
+        kind: "assistant",
+        text: info.reply,
+        chargedCents: info.chargedCents,
+        balanceCredits: info.balanceCredits,
+        ...(info.translation ? { translation: info.translation } : {}),
+        ...(info.suggestion ? { suggestion: info.suggestion } : {}),
+      }),
       onAudioChunk: (chunk) => {
         if (discardChunksRef.current) return; // 录音中/旧回复尾流：丢弃
         pcmRef.current.push(new Uint8Array(chunk));

@@ -148,6 +148,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.wallets,
       llmRouter,
       clock,
+      async (userId) => (await userRepo.get(userId))?.level,
     ),
   );
   app.decorate("speech", options.speech ?? defaultSpeech());
@@ -198,6 +199,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   if (dbPool) {
     // 登录态持久化：重启不掉线（auth_tokens 表，启动预热内存 Map，鉴权查询保持同步）
     await dbPool.query("CREATE TABLE IF NOT EXISTS auth_tokens (token text PRIMARY KEY, user_id text NOT NULL, expires_at_ms bigint NOT NULL)");
+    await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS level text");
     await auth.attachTokenStore({
       async put(token, userId, expiresAtMs) {
         await dbPool.query(

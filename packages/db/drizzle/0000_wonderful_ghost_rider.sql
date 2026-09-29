@@ -58,6 +58,7 @@ CREATE TABLE "users" (
 	"password_hash" text,
 	"password_salt" text,
 	"target_lang" text DEFAULT 'en' NOT NULL,
+	"level" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

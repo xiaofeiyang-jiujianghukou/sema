@@ -14,6 +14,7 @@ export default function Profile(): JSX.Element {
   const [stats, setStats] = useState<LearningProfile | null>(null);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [level, setLevel] = useState<"zero" | "basic" | "pro" | undefined>(user?.level);
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!token) return;
@@ -59,6 +60,29 @@ export default function Profile(): JSX.Element {
         ])}>
           <Text style={styles.danger}>注销账号</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.levelCard}>
+        <Text style={styles.levelTitle}>我的水平</Text>
+        <Text style={styles.levelDesc}>零基础：AI 自动放慢+中文翻译+建议句；入门：中文翻译；进阶：无辅助</Text>
+        <View style={styles.levelRow}>
+          {([["zero", "零基础"], ["basic", "入门"], ["pro", "进阶"]] as const).map(([value, label]) => (
+            <Pressable
+              key={value}
+              style={[styles.levelBtn, level === value && styles.levelBtnOn]}
+              onPress={() => {
+                setLevel(value);
+                if (token) {
+                  void api.updateMe(token, { level: value }).catch((err: unknown) => {
+                    Alert.alert("保存失败", err instanceof ApiError ? err.message : String(err));
+                  });
+                }
+              }}
+            >
+              <Text style={[styles.levelBtnText, level === value && styles.levelBtnTextOn]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <View style={styles.balanceCard}>
@@ -117,6 +141,14 @@ const styles = StyleSheet.create({
   phone: { color: "#7d9ab0", fontSize: 13, marginTop: 2 },
   logout: { color: "#e08f8f", fontSize: 14 },
   danger: { color: "#e08f8f", fontSize: 12, marginTop: 6 },
+  levelCard: { backgroundColor: "#132a3d", borderRadius: 14, padding: 14, gap: 8 },
+  levelTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "600" },
+  levelDesc: { color: "#7a92a8", fontSize: 11, lineHeight: 16 },
+  levelRow: { flexDirection: "row", gap: 8 },
+  levelBtn: { flex: 1, borderRadius: 8, paddingVertical: 8, alignItems: "center", backgroundColor: "#0d2233", borderWidth: 1, borderColor: "#1f3d55" },
+  levelBtnOn: { backgroundColor: "#1a73e8", borderColor: "#1a73e8" },
+  levelBtnText: { color: "#7a92a8", fontSize: 13 },
+  levelBtnTextOn: { color: "#fff", fontWeight: "600" },
   balanceCard: { backgroundColor: "#0e2740", borderRadius: 14, padding: 16, gap: 6 },
   balanceLabel: { color: "#7d9ab0", fontSize: 13 },
   balance: { color: "#7ee2a8", fontSize: 34, fontWeight: "700" },

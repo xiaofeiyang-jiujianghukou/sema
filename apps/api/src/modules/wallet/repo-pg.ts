@@ -158,20 +158,25 @@ interface UserRow {
   phone: string | null;
   display_name: string;
   target_lang: string | null;
+  level: string | null;
   password_hash: string | null;
   password_salt: string | null;
   created_at: Date;
 }
 
-const rowToUser = (r: UserRow): UserAccount => ({
-  id: r.id,
-  phone: r.phone ?? "",
-  nickname: r.display_name,
-  targetLang: (r.target_lang as UserAccount["targetLang"]) ?? "en",
-  passwordHash: r.password_hash,
-  passwordSalt: r.password_salt,
-  createdAtMs: new Date(r.created_at).getTime(),
-});
+const rowToUser = (r: UserRow): UserAccount => {
+  const user: UserAccount = {
+    id: r.id,
+    phone: r.phone ?? "",
+    nickname: r.display_name,
+    targetLang: (r.target_lang as UserAccount["targetLang"]) ?? "en",
+    passwordHash: r.password_hash,
+    passwordSalt: r.password_salt,
+    createdAtMs: new Date(r.created_at).getTime(),
+  };
+  if (r.level) user.level = r.level as NonNullable<UserAccount["level"]>;
+  return user;
+};
 
 export class DrizzleUserRepo implements UserRepo {
   constructor(private readonly pool: Pool) {}
@@ -179,13 +184,14 @@ export class DrizzleUserRepo implements UserRepo {
   async create(user: UserAccount): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO users (id, phone, display_name, target_lang, password_hash, password_salt, created_at) " +
-          "VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO users (id, phone, display_name, target_lang, level, password_hash, password_salt, created_at) " +
+          "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [
           user.id,
           user.phone,
           user.nickname,
           user.targetLang,
+          user.level ?? null,
           user.passwordHash,
           user.passwordSalt,
           new Date(user.createdAtMs),
@@ -199,7 +205,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async get(id: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, password_hash, password_salt, created_at FROM users WHERE id = $1",
+      "SELECT id, phone, display_name, target_lang, level, password_hash, password_salt, created_at FROM users WHERE id = $1",
       [id],
     );
     return rows[0] ? rowToUser(rows[0]) : null;
@@ -207,7 +213,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async findByPhone(phone: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, password_hash, password_salt, created_at FROM users WHERE phone = $1",
+      "SELECT id, phone, display_name, target_lang, level, password_hash, password_salt, created_at FROM users WHERE phone = $1",
       [phone],
     );
     return rows[0] ? rowToUser(rows[0]) : null;
@@ -215,8 +221,8 @@ export class DrizzleUserRepo implements UserRepo {
 
   async save(user: UserAccount): Promise<void> {
     await this.pool.query(
-      "UPDATE users SET display_name = $2, target_lang = $3, password_hash = $4, password_salt = $5 WHERE id = $1",
-      [user.id, user.nickname, user.targetLang, user.passwordHash, user.passwordSalt],
+      "UPDATE users SET display_name = $2, target_lang = $3, level = $4, password_hash = $5, password_salt = $6 WHERE id = $1",
+      [user.id, user.nickname, user.targetLang, user.level ?? null, user.passwordHash, user.passwordSalt],
     );
   }
 

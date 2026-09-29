@@ -129,11 +129,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const parsed = z.object({
       nickname: z.string().min(1).max(24).optional(),
       targetLang: z.enum(["en", "ja", "ko"]).optional(),
+      level: z.enum(["zero", "basic", "pro"]).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     return app.auth.updateMe(bearerOf(req), {
       ...(parsed.data.nickname !== undefined ? { nickname: parsed.data.nickname } : {}),
       ...(parsed.data.targetLang !== undefined ? { targetLang: parsed.data.targetLang } : {}),
+      ...(parsed.data.level !== undefined ? { level: parsed.data.level } : {}),
     });
   });
 

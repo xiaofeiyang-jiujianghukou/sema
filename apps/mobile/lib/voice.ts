@@ -14,7 +14,7 @@ export interface VoiceHandlers {
   onReady: (info: { sessionId: string; opener: string; centsPerSecond: number }) => void;
   onUserUtterance: (text: string) => void;
   onReplyStart: () => void;
-  onReply: (info: { reply: string; chargedCents: number; balanceCredits: string }) => void;
+  onReply: (info: { reply: string; chargedCents: number; balanceCredits: string; translation?: string; suggestion?: string }) => void;
   /** TTS PCM 分片（16k mono s16le），播放端负责攒齐 */
   onAudioChunk: (chunk: ArrayBuffer) => void;
   onAudioEnd: () => void;
@@ -100,6 +100,8 @@ export class VoiceClient {
           reply: String(j.reply),
           chargedCents: Number(j.chargedCents),
           balanceCredits: String(j.balanceCredits),
+          ...(typeof j.translation === "string" && j.translation ? { translation: j.translation } : {}),
+          ...(typeof j.suggestion === "string" && j.suggestion ? { suggestion: j.suggestion } : {}),
         });
         break;
       case "audio-end":

@@ -18,12 +18,17 @@ const CODE_COOLDOWN_MS = 60 * 1000;
 const CODE_HOURLY_LIMIT = 5;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** 学习者水平：zero=零基础（译+建议句）、basic=入门（译）、pro=进阶（无辅助） */
+export type UserLevel = "zero" | "basic" | "pro";
+
 export interface UserAccount {
   id: string;
   phone: string;
   nickname: string;
   /** 目标语言偏好（注册后可在设置里改；情景选择独立于此） */
   targetLang: TargetLang;
+  /** 学习者水平（未设置按 basic 处理） */
+  level?: UserLevel;
   passwordHash: string | null; // null = 仅验证码登录（未设密码）
   passwordSalt: string | null;
   createdAtMs: number;
@@ -131,11 +136,19 @@ export interface PublicUser {
   phone: string;
   nickname: string;
   targetLang: TargetLang;
+  level?: UserLevel | undefined;
   createdAtMs: number;
 }
 
 function toPublic(user: UserAccount): PublicUser {
-  return { id: user.id, phone: user.phone, nickname: user.nickname, targetLang: user.targetLang, createdAtMs: user.createdAtMs };
+  return {
+    id: user.id,
+    phone: user.phone,
+    nickname: user.nickname,
+    targetLang: user.targetLang,
+    ...(user.level ? { level: user.level } : {}),
+    createdAtMs: user.createdAtMs,
+  };
 }
 
 /** 鉴权令牌持久化接口：配置 Postgres 时实现，重启不掉登录态 */
@@ -260,12 +273,13 @@ export class AuthService {
     return toPublic(user);
   }
 
-  async updateMe(token: string, patch: { nickname?: string; targetLang?: TargetLang }): Promise<PublicUser> {
+  async updateMe(token: string, patch: { nickname?: string; targetLang?: TargetLang; level?: UserLevel }): Promise<PublicUser> {
     const userId = this.userIdOf(token);
     const user = await this.deps.users.get(userId);
     if (!user) throw new AuthError("TOKEN_INVALID");
     if (patch.nickname !== undefined) user.nickname = patch.nickname.trim().slice(0, 24) || user.nickname;
     if (patch.targetLang !== undefined) user.targetLang = patch.targetLang;
+    if (patch.level !== undefined) user.level = patch.level;
     await this.deps.users.save(user);
     return toPublic(user);
   }

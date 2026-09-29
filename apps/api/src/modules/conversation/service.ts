@@ -86,9 +86,34 @@ export interface StartResult {
 export interface TurnResult {
   sessionId: string;
   reply: string;
+  /** 零基础/入门模式：AI 回复的中文翻译（正文之后的「译：」行） */
+  translation?: string;
+  /** 零基础模式：建议用户此刻说的一句目标语言（「说：」行） */
+  suggestion?: string;
   /** 本次请求刚结清的前一段时长（厘，>=0） */
   chargedCents: number;
   balanceCredits: string;
+}
+
+/** 剥离「译：」「说：」脚手架标记行（兼容全角/半角冒号） */
+export function splitScaffolding(raw: string): { reply: string; translation: string | null; suggestion: string | null } {
+  let translation: string | null = null;
+  let suggestion: string | null = null;
+  const body: string[] = [];
+  for (const rawLine of raw.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (/^译[:：]/.test(line)) {
+      const t = line.replace(/^译[:：]\s*/, "").trim();
+      if (t) translation = t;
+    } else if (/^说[:：]/.test(line)) {
+      const t = line.replace(/^说[:：]\s*/, "").trim();
+      if (t) suggestion = t;
+    } else {
+      body.push(line);
+    }
+  }
+  return { reply: body.join("\n").trim() || raw.trim(), translation, suggestion };
 }
 
 export interface EndResult {
@@ -109,6 +134,8 @@ export class ConversationService {
     private readonly wallets: WalletService,
     private readonly router: TaskRouter,
     private readonly now: () => number = Date.now,
+    /** 学习者水平（未注入按 basic 处理）：决定回复难度与中文辅助 */
+    private readonly getUserLevel?: (userId: string) => Promise<"zero" | "basic" | "pro" | undefined>,
   ) {}
 
   async start(userId: string, scenarioId: string): Promise<StartResult> {
@@ -209,18 +236,41 @@ export class ConversationService {
 
     session.history.push({ role: "user", content: text });
     const decision = this.router.route("dialogue");
+
+    // 学习者水平脚手架：只影响本次调用的额外 system 指令，不写入历史
+    const level = this.getUserLevel ? await this.getUserLevel(session.userId) : undefined;
+    const scaffold =
+      level === "zero"
+        ? [
+            "【零基础学习者模式，必须遵守】",
+            "- 用户几乎不认识这门语言：回复最多两句，只用最基础的 A1 词汇，短句，一次只问一个问题。",
+            "- 正文后另起一行，以「译：」开头给出你整段回复的自然中文翻译。",
+            "- 再另起一行，以「说：」开头给一句用户此刻最可能想说、能推进对话的目标语言短句（纯句子，无引号无解释）。",
+          ].join("\n")
+        : level === "basic"
+          ? [
+              "【入门学习者模式】",
+              "- 用简短句和常见词汇，避免俚语与复杂从句。",
+              "- 正文后另起一行，以「译：」开头给出你整段回复的中文翻译。",
+            ].join("\n")
+          : null;
+    const messages = scaffold ? [...session.history, { role: "system" as const, content: scaffold }] : session.history;
+
     const result = decision.provider.chat({
-      messages: session.history,
+      messages,
       temperature: 0.7,
       maxTokens: 300,
     });
 
-    let reply = "";
-    for await (const chunk of result.chunks) reply += chunk;
+    let raw = "";
+    for await (const chunk of result.chunks) raw += chunk;
     const usage = await result.usage();
     session.meter.record(decision.provider.model, usage, {
       tags: { sessionId, task: "dialogue" },
     });
+
+    // 剥离「译：」「说：」标记行：正文入历史（语音也只播正文），翻译与建议句单独下发
+    const { reply, translation, suggestion } = splitScaffolding(raw);
     session.history.push({ role: "assistant", content: reply });
 
     await this.repo.save(session);
@@ -229,6 +279,8 @@ export class ConversationService {
     return {
       sessionId,
       reply,
+      ...(translation ? { translation } : {}),
+      ...(suggestion ? { suggestion } : {}),
       chargedCents,
       balanceCredits: wallet.balanceCredits,
     };

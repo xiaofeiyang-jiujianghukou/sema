@@ -15,6 +15,8 @@ export interface PublicUser {
   phone: string;
   nickname: string;
   targetLang: "en" | "ja" | "ko";
+  /** 学习者水平：决定对话难度与中文辅助（零基础=译+建议句） */
+  level?: "zero" | "basic" | "pro" | undefined;
   createdAtMs: number;
 }
 
@@ -53,6 +55,10 @@ export interface StartResult {
 
 export interface TurnResult {
   reply: string;
+  /** 零基础/入门模式：AI 回复的中文翻译 */
+  translation?: string;
+  /** 零基础模式：建议用户此刻说的一句目标语言 */
+  suggestion?: string;
   chargedCents: number;
   balanceCredits: string;
 }
@@ -213,6 +219,8 @@ export const api = {
     request<{ card: VocabCard }>(`/v1/vocab/${cardId}/review`, { method: "POST", token, body: JSON.stringify({ grade }) }),
   lecture: (token: string, cardId: string) =>
     request<{ term: string; lecture: VocabLecture; cached: boolean; chargedCents: number }>(`/v1/vocab/${cardId}/lecture`, { method: "POST", token }),
+  updateMe: (token: string, patch: { nickname?: string; targetLang?: "en" | "ja" | "ko"; level?: "zero" | "basic" | "pro" }) =>
+    request<PublicUser>("/v1/auth/me", { method: "PATCH", token, body: JSON.stringify(patch) }),
   stats: (token: string) => request<LearningProfile>("/v1/stats", { token }),
   wallet: (token: string) => request<WalletInfo>("/v1/wallet", { token }),
 };

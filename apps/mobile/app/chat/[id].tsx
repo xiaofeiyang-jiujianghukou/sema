@@ -15,6 +15,10 @@ interface Message {
   text: string;
   chargedCents?: number;
   balanceCredits?: string;
+  /** 零基础/入门模式：中文翻译 */
+  translation?: string;
+  /** 零基础模式：建议句（点击填入输入框） */
+  suggestion?: string;
 }
 
 const VOICE_STATE_TEXT: Record<VoiceState, string> = {
@@ -139,7 +143,7 @@ export default function Chat(): JSX.Element {
       setMessages((m) => {
         const idx = m.length;
         if (ev.kind === "assistant") setTimeout(() => startReveal(idx, ev.text), 0);
-        return [...m, { role: ev.kind, text: ev.text, chargedCents: ev.chargedCents, balanceCredits: ev.balanceCredits }];
+        return [...m, { role: ev.kind, text: ev.text, chargedCents: ev.chargedCents, balanceCredits: ev.balanceCredits, translation: ev.translation, suggestion: ev.suggestion }];
       });
       if (ev.kind === "assistant") setSessionTotal((t) => t + (ev.chargedCents ?? 0));
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
@@ -179,7 +183,7 @@ export default function Chat(): JSX.Element {
       setMessages((m) => {
         const idx = m.length;
         setTimeout(() => startReveal(idx, turn.reply), 0);
-        return [...m, { role: "assistant", text: turn.reply, chargedCents: turn.chargedCents, balanceCredits: turn.balanceCredits }];
+        return [...m, { role: "assistant", text: turn.reply, chargedCents: turn.chargedCents, balanceCredits: turn.balanceCredits, translation: turn.translation, suggestion: turn.suggestion }];
       });
       setSessionTotal((t) => t + turn.chargedCents);
     } catch (err) {
@@ -270,6 +274,17 @@ export default function Chat(): JSX.Element {
                     ) : null}
                   </View>
                 )}
+                {item.translation ? (
+                  <Text style={styles.translationNote}>译：{item.translation}</Text>
+                ) : null}
+                {item.suggestion ? (
+                  <Pressable
+                    style={styles.suggestionChip}
+                    onPress={() => { setInput(item.suggestion ?? ""); }}
+                  >
+                    <Text style={styles.suggestionText}>试试这样说：{item.suggestion}</Text>
+                  </Pressable>
+                ) : null}
                 {translations[index] && (
                   <View style={styles.lookupCard}>
                     {translations[index].loading ? (
@@ -353,6 +368,9 @@ const styles = StyleSheet.create({
   bubbleText: { color: "#f2f7fa", fontSize: 16, lineHeight: 23 },
   chargeNote: { color: "#5f7d92", fontSize: 10, marginTop: 6 },
   word: { color: "#1a73e8", textDecorationLine: "underline" },
+  translationNote: { color: "#7a92a8", fontSize: 12, marginTop: 6, lineHeight: 17 },
+  suggestionChip: { marginTop: 8, alignSelf: "flex-start", backgroundColor: "#eaf2fb", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: "#c8dcf2" },
+  suggestionText: { color: "#1a5a9e", fontSize: 12 },
   lookupCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: "#eef4fa" },
   lookupText: { fontSize: 12, color: "#5f7d92" },
   lookupWord: { fontSize: 14, fontWeight: "700", color: "#123" },
