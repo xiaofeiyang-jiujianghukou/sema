@@ -126,6 +126,24 @@ export class RealtimeVoiceSession {
     }
   }
 
+  /**
+   * 强制收段：按住说话「松手 = 说完」，不等 hangover 静音判定。
+   * 无待发内容（纯静音/太短）时给出明确提示，客户端不再悬在「思考」态。
+   */
+  flush(): void {
+    if (this.inSegment || this.speechFrames > 0) {
+      const segment = Buffer.from(this.ringBuffer);
+      this.ringBuffer = Buffer.alloc(0);
+      this.inSegment = false;
+      this.speechFrames = 0;
+      this.silenceFrames = 0;
+      if (segment.length > 0) void this.handleSegment(segment);
+      return;
+    }
+    // 没有检测到任何语音：提示用户而非静默悬挂
+    this.callbacks.onError?.("没听清，请靠近麦克风再说一次");
+  }
+
   /** WS 关闭时调用：放弃进行中的工作 */
   close(): void {
     this.closed = true;
@@ -138,7 +156,10 @@ export class RealtimeVoiceSession {
     try {
       const text = await this.transcribe(segment);
       if (this.closed) return;
-      if (text.trim().length === 0) return; // 纯噪声段，静默丢弃
+      if (text.trim().length === 0) {
+        this.callbacks.onError?.("没听清，请再说一次");
+        return;
+      }
       this.callbacks.onUserUtterance?.(text);
 
       const controller = new AbortController();

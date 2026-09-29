@@ -44,6 +44,7 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
       let parsed: unknown;
       try {
         parsed = JSON.parse((data as Buffer).toString("utf8"));
+        console.log(`[realtime] 收到控制帧: ${(parsed as { type?: string }).type ?? "?"} (${Math.round((data as Buffer).length / 1024)}KB)`);
       } catch {
         send({ type: "error", message: "控制帧必须是 JSON" });
         return;
@@ -76,9 +77,12 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
         }
         void (async () => {
           try {
+            console.log(`[realtime] audio-aac 收到 ${Math.round(aacCheck.data.data.length / 1024)}KB base64，开始转码`);
             const pcm = await aacToPcm(Buffer.from(aacCheck.data.data, "base64"));
-            // 整段上传没有后续静音流：主动补 300ms 静音，让 VAD 的 hangover 判定出段
-            session?.pushAudio(Buffer.concat([pcm, Buffer.alloc(32 * 300)]));
+            console.log(`[realtime] 转码完成 ${(pcm.length / 2 / 16000).toFixed(2)}s PCM，送 VAD`);
+            // 按住说话：松手即说完，直接强制收段（不依赖静音 hangover）
+            session?.pushAudio(pcm);
+            session?.flush();
           } catch (err) {
             send({ type: "error", message: `音频转码失败: ${err instanceof Error ? err.message : String(err)}` });
           }

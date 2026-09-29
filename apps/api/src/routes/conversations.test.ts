@@ -111,7 +111,7 @@ describe("会话 API 冒烟", () => {
     const sessionId = start.json().sessionId;
 
     // 真实耗尽：30 积分 = 300 轮文字，逐轮发到 INSUFFICIENT_FUNDS 为止
-    let blocked;
+    let blocked: Awaited<ReturnType<typeof app.inject>> | undefined;
     for (let i = 0; i < 320; i += 1) {
       blocked = await app.inject({
         method: "POST",
@@ -121,8 +121,9 @@ describe("会话 API 冒烟", () => {
       if (blocked.statusCode === 409) break;
     }
 
-    expect(blocked.statusCode).toBe(409);
-    expect(blocked.json().error.code).toBe("INSUFFICIENT_FUNDS");
+    expect(blocked).toBeDefined();
+    expect(blocked!.statusCode).toBe(409);
+    expect(blocked!.json().error.code).toBe("INSUFFICIENT_FUNDS");
 
     // 充值后续聊成功（新的一轮 10 厘）
     await app.inject({

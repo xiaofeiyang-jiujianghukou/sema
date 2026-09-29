@@ -50,8 +50,10 @@ export class VoiceClient {
       }
     };
     ws.onerror = () => this.handlers.onError("语音连接出错，请检查网络与后端服务");
-    ws.onclose = () => {
+    ws.onclose = (ev: WebSocketCloseEvent) => {
+      console.error(`[voice] WS 断开: code=${(ev as { code?: number }).code} reason=${(ev as { reason?: string }).reason ?? "-"}`);
       this.ws = null;
+      this.ready = false;
     };
 
     // RN 的 WebSocket 在 CONNECTING 状态 send 会同步抛 INVALID_STATE_ERR，
@@ -105,9 +107,14 @@ export class VoiceClient {
 
   /** 按住说话：松手后把整段 AAC（base64）发出去 */
   sendAacBase64(base64: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "audio-aac", data: base64 }));
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.error(`[voice] 音频未发送：WS readyState=${ws?.readyState ?? "null"}`);
+      this.handlers.onError("语音连接已断开，请关掉语音重开一次");
+      return;
     }
+    console.log(`[voice] 发送 audio-aac：${Math.round(base64.length / 1024)}KB（readyState=OPEN）`);
+    ws.send(JSON.stringify({ type: "audio-aac", data: base64 }));
   }
 
   end(): void {
