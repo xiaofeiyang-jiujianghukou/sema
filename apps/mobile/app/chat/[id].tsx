@@ -216,6 +216,15 @@ export default function Chat(): JSX.Element {
         // 重复点击/已结束：幂等放行
         if (!(endErr instanceof ApiError && endErr.code === "CONVERSATION_ENDED")) throw endErr;
       }
+      // 结束对话后自动尝试闯关判定（中级/高级按轮数；达标则发奖并提示）
+      try {
+        const attempt = await api.challengeSessionAttempt(token, id);
+        if (attempt.completed.length > 0) {
+          Alert.alert("🎉 闯关成功", `${attempt.completed.join("、")}\n奖励积分已入账`);
+        }
+      } catch {
+        // 闯关判定失败不影响复盘流程
+      }
       router.replace({ pathname: "/review/[id]", params: { id } });
     } catch (err) {
       Alert.alert("结束失败", err instanceof ApiError ? err.message : String(err));

@@ -34,7 +34,7 @@ export default function Onboarding(): JSX.Element {
     try {
       const updated = await api.updateMe(token, { targetLang: lang, level });
       updateUser(updated as PublicUser);
-      router.replace("/scenarios");
+      router.replace("/course");
     } catch (err) {
       Alert.alert("保存失败", err instanceof ApiError ? err.message : String(err));
     } finally {

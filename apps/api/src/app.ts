@@ -23,6 +23,9 @@ import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
 import { AuthService, MemoryUserRepo, ConsoleSmsSender, levelFor, type AccountDeletionRepos, type SmsSender } from "./modules/auth/service.js";
+import { ChallengeService, MemoryChallengeRepo, DrizzleChallengeRepo } from "./modules/challenges/service.js";
+import { challengeRoutes } from "./routes/challenges.js";
+import { aacToPcm } from "./modules/realtime/transcode.js";
 import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
@@ -204,6 +207,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await dbPool.query("CREATE TABLE IF NOT EXISTS auth_tokens (token text PRIMARY KEY, user_id text NOT NULL, expires_at_ms bigint NOT NULL)");
     await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS level text");
     await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS levels jsonb");
+    await dbPool.query(
+      "CREATE TABLE IF NOT EXISTS user_challenges (user_id text NOT NULL, challenge_id text NOT NULL, completed_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (user_id, challenge_id))",
+    );
     await auth.attachTokenStore({
       async put(token, userId, expiresAtMs) {
         await dbPool.query(
@@ -225,6 +231,47 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }
   app.decorate("auth", auth);
 
+  const challengeRepo = dbPool ? new DrizzleChallengeRepo(dbPool) : new MemoryChallengeRepo();
+  app.decorate("challenges", new ChallengeService({
+    repo: challengeRepo,
+    grant: async (userId, cents, reason, idem) => {
+      await app.wallets.grant(userId, cents, reason, idem);
+    },
+    getSession: async (sessionId) => {
+      const s = await conversationRepo.get(sessionId);
+      if (!s) return null;
+      return {
+        userId: s.userId,
+        scenarioId: s.scenarioId,
+        userTurns: s.history.filter((m) => m.role === "user").length,
+      };
+    },
+    transcribe: async (audioBase64, lang) => {
+      const pcm = await aacToPcm(Buffer.from(audioBase64, "base64"));
+      const recognizer = (options.speech ?? app.speech).asr.createRecognizer({
+        sampleRate: 16_000,
+        language: ASR_LANGUAGE[lang],
+      });
+      let lastPartial = "";
+      const collecting = (async () => {
+        const parts: string[] = [];
+        for await (const r of recognizer.results()) {
+          if (r.definite && r.text) parts.push(r.text);
+          else if (r.text) lastPartial = r.text;
+        }
+        return parts;
+      })();
+      const slice = 32_000 / 10; // 100ms @16kHz 16bit 单声道
+      for (let offset = 0; offset < pcm.length; offset += slice) {
+        await recognizer.push(pcm.subarray(offset, Math.min(offset + slice, pcm.length)));
+      }
+      await recognizer.finish();
+      const parts = await collecting;
+      recognizer.abort();
+      return parts.length > 0 ? parts.join("") : lastPartial;
+    },
+  }));
+
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: "/v1/auth" });
   await app.register(walletRoutes, { prefix: "/v1/wallet" });
@@ -233,6 +280,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(vocabRoutes, { prefix: "/v1" });
   await app.register(statsRoutes, { prefix: "/v1" });
   await app.register(realtimeRoutes, { prefix: "/v1" });
+  await app.register(challengeRoutes, { prefix: "/v1/challenges" });
 
   return app;
 }

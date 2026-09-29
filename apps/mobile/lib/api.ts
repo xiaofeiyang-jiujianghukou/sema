@@ -33,6 +33,24 @@ export interface ScenarioSummary {
   setting: string;
 }
 
+export interface ChallengeWordInfo {
+  text: string;
+  display: string;
+}
+
+export interface ChallengeProgress {
+  id: string;
+  tier: "beginner" | "intermediate" | "advanced";
+  order: number;
+  title: string;
+  description: string;
+  rewardCents: number;
+  requiredTurns: number;
+  state: "completed" | "open" | "locked";
+  words: ChallengeWordInfo[] | null;
+  scenarioId: string | null;
+}
+
 export interface WordLookup {
   word: string;
   translation: string;
@@ -222,6 +240,24 @@ export const api = {
     request<{ card: VocabCard }>(`/v1/vocab/${cardId}/review`, { method: "POST", token, body: JSON.stringify({ grade }) }),
   lecture: (token: string, cardId: string) =>
     request<{ term: string; lecture: VocabLecture; cached: boolean; chargedCents: number }>(`/v1/vocab/${cardId}/lecture`, { method: "POST", token }),
+  challenges: (token: string, lang: "en" | "ja" | "ko") =>
+    request<{ lang: string; challenges: ChallengeProgress[] }>(`/v1/challenges?lang=${lang}`, { token }),
+  challengeVoice: (token: string, id: string, audioBase64: string) =>
+    request<{ results: { text: string; display: string; ok: boolean }[]; matched: number; threshold: number }>(
+      `/v1/challenges/${id}/voice`,
+      { method: "POST", token, body: JSON.stringify({ audioBase64 }) },
+    ),
+  challengeClaim: (token: string, id: string, matched: number) =>
+    request<{ rewardedCents: number; alreadyDone: boolean; balanceCredits: string }>(
+      `/v1/challenges/${id}/claim`,
+      { method: "POST", token, body: JSON.stringify({ matched }) },
+    ),
+  challengeSessionAttempt: (token: string, sessionId: string) =>
+    request<{ completed: string[] }>("/v1/challenges/session-attempt", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ sessionId }),
+    }),
   updateMe: (token: string, patch: { nickname?: string; targetLang?: "en" | "ja" | "ko"; level?: "zero" | "basic" | "pro" }) =>
     request<PublicUser>("/v1/auth/me", { method: "PATCH", token, body: JSON.stringify(patch) }),
 
