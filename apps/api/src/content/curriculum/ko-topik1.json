@@ -1,0 +1,822 @@
+{
+  "courseId": "ko-topik1",
+  "lang": "ko",
+  "band": "TOPIK I",
+  "title": "韩语入门（TOPIK I）",
+  "description": "对齐 TOPIK I 大纲的第一册课程：8 单元 × 10 词 × 3 句型，配套对话应用关卡",
+  "units": [
+    {
+      "id": "ko-topik1-u01",
+      "order": 1,
+      "title": "인사와 자기소개",
+      "words": [
+        {
+          "term": "안녕하세요",
+          "reading": "annyeonghaseyo",
+          "meaning": "你好（敬语问候）",
+          "example": "안녕하세요? 리밍입니다.",
+          "exampleZh": "你好？我是李明。"
+        },
+        {
+          "term": "감사합니다",
+          "reading": "gamsahamnida",
+          "meaning": "谢谢",
+          "example": "도와주셔서 감사합니다.",
+          "exampleZh": "谢谢你的帮助。",
+          "variants": [
+            "고맙습니다"
+          ]
+        },
+        {
+          "term": "죄송합니다",
+          "reading": "joesonghamnida",
+          "meaning": "对不起",
+          "example": "늦어서 죄송합니다.",
+          "exampleZh": "来晚了，对不起。",
+          "variants": [
+            "미안합니다"
+          ]
+        },
+        {
+          "term": "네",
+          "reading": "ne",
+          "meaning": "是；好的",
+          "example": "네, 맞아요.",
+          "exampleZh": "是的，没错。"
+        },
+        {
+          "term": "아니요",
+          "reading": "aniyo",
+          "meaning": "不是",
+          "example": "아니요, 학생이 아니에요.",
+          "exampleZh": "不，不是学生。",
+          "variants": [
+            "아니에요"
+          ]
+        },
+        {
+          "term": "이름",
+          "reading": "ireum",
+          "meaning": "名字",
+          "example": "이름이 뭐예요?",
+          "exampleZh": "你叫什么名字？"
+        },
+        {
+          "term": "저",
+          "reading": "jeo",
+          "meaning": "我（谦称）",
+          "example": "저는 중국 사람이에요.",
+          "exampleZh": "我是中国人。"
+        },
+        {
+          "term": "친구",
+          "reading": "chingu",
+          "meaning": "朋友",
+          "example": "친구를 만나요.",
+          "exampleZh": "见朋友。"
+        },
+        {
+          "term": "선생님",
+          "reading": "seonsaengnim",
+          "meaning": "老师",
+          "example": "선생님을 만났어요.",
+          "exampleZh": "见到老师了。"
+        },
+        {
+          "term": "학생",
+          "reading": "haksaeng",
+          "meaning": "学生",
+          "example": "저는 학생이에요.",
+          "exampleZh": "我是学生。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "저는 ~입니다/이에요.",
+          "meaning": "我是～。",
+          "example": "저는 학생이에요.",
+          "exampleZh": "我是学生。"
+        },
+        {
+          "pattern": "이름이 뭐예요?",
+          "meaning": "你叫什么名字？",
+          "example": "이름이 뭐예요?",
+          "exampleZh": "你叫什么名字？"
+        },
+        {
+          "pattern": "~에서 왔어요.",
+          "meaning": "我来自～。",
+          "example": "베이징에서 왔어요.",
+          "exampleZh": "我来自北京。"
+        }
+      ],
+      "dialogueGoal": "与对方互相问候并完成自我介绍（名字、国籍、身份）"
+    },
+    {
+      "id": "ko-topik1-u02",
+      "order": 2,
+      "title": "숫자와 시간",
+      "words": [
+        {
+          "term": "하나",
+          "reading": "hana",
+          "meaning": "一（1）",
+          "example": "커피 하나 주세요.",
+          "exampleZh": "请给我一杯咖啡。",
+          "variants": [
+            "1",
+            "일"
+          ]
+        },
+        {
+          "term": "둘",
+          "reading": "dul",
+          "meaning": "二（2）",
+          "example": "둘 모두 갑니다.",
+          "exampleZh": "两个人都去。",
+          "variants": [
+            "2",
+            "이"
+          ]
+        },
+        {
+          "term": "셋",
+          "reading": "set",
+          "meaning": "三（3）",
+          "example": "셋 있어요.",
+          "exampleZh": "有三个。",
+          "variants": [
+            "3",
+            "삼"
+          ]
+        },
+        {
+          "term": "넷",
+          "reading": "net",
+          "meaning": "四（4）",
+          "example": "넷 중에 하나.",
+          "exampleZh": "四个中的一个。",
+          "variants": [
+            "4",
+            "사"
+          ]
+        },
+        {
+          "term": "다섯",
+          "reading": "daseot",
+          "meaning": "五（5）",
+          "example": "다섯 시에 만나요.",
+          "exampleZh": "五点见面。",
+          "variants": [
+            "5",
+            "오"
+          ]
+        },
+        {
+          "term": "지금",
+          "reading": "jigeum",
+          "meaning": "现在",
+          "example": "지금 몇 시예요?",
+          "exampleZh": "现在几点？"
+        },
+        {
+          "term": "몇 시",
+          "reading": "myeot si",
+          "meaning": "几点",
+          "example": "몇 시에 일어나요?",
+          "exampleZh": "你几点起床？"
+        },
+        {
+          "term": "오늘",
+          "reading": "oneul",
+          "meaning": "今天",
+          "example": "오늘은 화요일이에요.",
+          "exampleZh": "今天是星期二。"
+        },
+        {
+          "term": "내일",
+          "reading": "naeil",
+          "meaning": "明天",
+          "example": "내일 시간 있어요?",
+          "exampleZh": "明天有时间吗？"
+        },
+        {
+          "term": "월요일",
+          "reading": "woryoil",
+          "meaning": "星期一",
+          "example": "월요일에 학교에 가요.",
+          "exampleZh": "星期一去学校。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "지금 몇 시예요?",
+          "meaning": "现在几点？",
+          "example": "지금 몇 시예요?",
+          "exampleZh": "现在几点？"
+        },
+        {
+          "pattern": "~시에 만나요.",
+          "meaning": "～点见面。",
+          "example": "3시에 만나요.",
+          "exampleZh": "3 点见面。"
+        },
+        {
+          "pattern": "오늘은 ~요일이에요.",
+          "meaning": "今天是星期～。",
+          "example": "오늘은 수요일이에요.",
+          "exampleZh": "今天是星期三。"
+        }
+      ],
+      "dialogueGoal": "与同学确认时间与日期，约定见面时间"
+    },
+    {
+      "id": "ko-topik1-u03",
+      "order": 3,
+      "title": "가족과 사람",
+      "words": [
+        {
+          "term": "가족",
+          "reading": "gajok",
+          "meaning": "家人",
+          "example": "가족은 몇 명이에요?",
+          "exampleZh": "家里有几口人？"
+        },
+        {
+          "term": "아버지",
+          "reading": "abeoji",
+          "meaning": "父亲",
+          "example": "아버지는 회사에 다녀요.",
+          "exampleZh": "父亲在公司上班。"
+        },
+        {
+          "term": "어머니",
+          "reading": "eomeoni",
+          "meaning": "母亲",
+          "example": "어머니는 요리를 해요.",
+          "exampleZh": "母亲做饭。"
+        },
+        {
+          "term": "오빠",
+          "reading": "oppa",
+          "meaning": "哥哥（女称）",
+          "example": "오빠는 대학생이에요.",
+          "exampleZh": "哥哥是大学生。"
+        },
+        {
+          "term": "언니",
+          "reading": "eonni",
+          "meaning": "姐姐（女称）",
+          "example": "언니는 스물네 살이에요.",
+          "exampleZh": "姐姐 24 岁。"
+        },
+        {
+          "term": "동생",
+          "reading": "dongsaeng",
+          "meaning": "弟弟/妹妹",
+          "example": "동생은 아이예요.",
+          "exampleZh": "弟弟还是小孩。"
+        },
+        {
+          "term": "아이",
+          "reading": "ai",
+          "meaning": "孩子",
+          "example": "아이가 두 명 있어요.",
+          "exampleZh": "有两个孩子。"
+        },
+        {
+          "term": "사람",
+          "reading": "saram",
+          "meaning": "人",
+          "example": "저 사람은 누구예요?",
+          "exampleZh": "那个人是谁？"
+        },
+        {
+          "term": "남자",
+          "reading": "namja",
+          "meaning": "男人",
+          "example": "남자 친구가 있어요.",
+          "exampleZh": "有男朋友。"
+        },
+        {
+          "term": "여자",
+          "reading": "yeoja",
+          "meaning": "女人",
+          "example": "여자 친구를 소개해요.",
+          "exampleZh": "介绍女朋友。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "제 가족은 ~명이에요.",
+          "meaning": "我家有～口人。",
+          "example": "제 가족은 4명이에요.",
+          "exampleZh": "我家有 4 口人。"
+        },
+        {
+          "pattern": "이것은 제 ~이에요/예요.",
+          "meaning": "这是我的～。",
+          "example": "이것은 제 동생이에요.",
+          "exampleZh": "这是我弟弟。"
+        },
+        {
+          "pattern": "~는 몇 살이에요?",
+          "meaning": "～几岁？",
+          "example": "동생은 몇 살이에요?",
+          "exampleZh": "弟弟几岁？"
+        }
+      ],
+      "dialogueGoal": "向对方介绍自己的家人（人数、称呼、年龄）"
+    },
+    {
+      "id": "ko-topik1-u04",
+      "order": 4,
+      "title": "음식과 음료",
+      "words": [
+        {
+          "term": "물",
+          "reading": "mul",
+          "meaning": "水",
+          "example": "물 좀 주세요.",
+          "exampleZh": "请给我水。"
+        },
+        {
+          "term": "밥",
+          "reading": "bap",
+          "meaning": "米饭；饭",
+          "example": "밥을 먹어요.",
+          "exampleZh": "吃饭。"
+        },
+        {
+          "term": "빵",
+          "reading": "ppang",
+          "meaning": "面包",
+          "example": "아침에 빵을 먹어요.",
+          "exampleZh": "早上吃面包。"
+        },
+        {
+          "term": "우유",
+          "reading": "uyu",
+          "meaning": "牛奶",
+          "example": "우유를 마셔요.",
+          "exampleZh": "喝牛奶。"
+        },
+        {
+          "term": "고기",
+          "reading": "gogi",
+          "meaning": "肉",
+          "example": "고기를 좋아해요.",
+          "exampleZh": "喜欢吃肉。"
+        },
+        {
+          "term": "야채",
+          "reading": "yachae",
+          "meaning": "蔬菜",
+          "example": "야채를 많이 먹어요.",
+          "exampleZh": "多吃蔬菜。"
+        },
+        {
+          "term": "과일",
+          "reading": "gwail",
+          "meaning": "水果",
+          "example": "과일이 좋아요.",
+          "exampleZh": "水果很好。"
+        },
+        {
+          "term": "커피",
+          "reading": "keopi",
+          "meaning": "咖啡",
+          "example": "커피 마시러 가요.",
+          "exampleZh": "去喝咖啡。"
+        },
+        {
+          "term": "맛",
+          "reading": "mat",
+          "meaning": "味道",
+          "example": "맛이 어때요?",
+          "exampleZh": "味道怎么样？"
+        },
+        {
+          "term": "식당",
+          "reading": "sikdang",
+          "meaning": "食堂；餐厅",
+          "example": "학교 식당이에요.",
+          "exampleZh": "是学校食堂。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "~을/를 먹어요.",
+          "meaning": "吃～。",
+          "example": "빵을 먹어요.",
+          "exampleZh": "吃面包。"
+        },
+        {
+          "pattern": "맛있어요!",
+          "meaning": "好吃！",
+          "example": "정말 맛있어요!",
+          "exampleZh": "真好吃！"
+        },
+        {
+          "pattern": "~ 좀 주세요.",
+          "meaning": "请给我～。",
+          "example": "물 좀 주세요.",
+          "exampleZh": "请给我水。"
+        }
+      ],
+      "dialogueGoal": "在餐厅用韩语点餐并评价味道"
+    },
+    {
+      "id": "ko-topik1-u05",
+      "order": 5,
+      "title": "일상생활",
+      "words": [
+        {
+          "term": "일어나다",
+          "reading": "ireonada",
+          "meaning": "起床",
+          "example": "아침에 일찍 일어나요.",
+          "exampleZh": "早上起得早。"
+        },
+        {
+          "term": "자다",
+          "reading": "jada",
+          "meaning": "睡觉",
+          "example": "밤에 일찍 자요.",
+          "exampleZh": "晚上睡得早。"
+        },
+        {
+          "term": "먹다",
+          "reading": "meokda",
+          "meaning": "吃",
+          "example": "점심을 먹어요.",
+          "exampleZh": "吃午饭。"
+        },
+        {
+          "term": "마시다",
+          "reading": "masida",
+          "meaning": "喝",
+          "example": "차를 마셔요.",
+          "exampleZh": "喝茶。"
+        },
+        {
+          "term": "보다",
+          "reading": "boda",
+          "meaning": "看",
+          "example": "텔레비전을 봐요.",
+          "exampleZh": "看电视。"
+        },
+        {
+          "term": "읽다",
+          "reading": "ikda",
+          "meaning": "读",
+          "example": "책을 읽어요.",
+          "exampleZh": "读书。"
+        },
+        {
+          "term": "쓰다",
+          "reading": "sseuda",
+          "meaning": "写",
+          "example": "편지를 써요.",
+          "exampleZh": "写信。"
+        },
+        {
+          "term": "일하다",
+          "reading": "ilhada",
+          "meaning": "工作",
+          "example": "회사에서 일해요.",
+          "exampleZh": "在公司工作。"
+        },
+        {
+          "term": "공부하다",
+          "reading": "gongbuhada",
+          "meaning": "学习",
+          "example": "한국어를 공부해요.",
+          "exampleZh": "学韩语。"
+        },
+        {
+          "term": "회사",
+          "reading": "hoesa",
+          "meaning": "公司",
+          "example": "회사가 가까워요.",
+          "exampleZh": "公司很近。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "아침에 ~에 일어나요.",
+          "meaning": "早上～点起床。",
+          "example": "아침에 7시에 일어나요.",
+          "exampleZh": "早上 7 点起床。"
+        },
+        {
+          "pattern": "~을/를 해요.",
+          "meaning": "做～。",
+          "example": "공부를 해요.",
+          "exampleZh": "学习。"
+        },
+        {
+          "pattern": "~에 가요.",
+          "meaning": "去～。",
+          "example": "회사에 가요.",
+          "exampleZh": "去公司。"
+        }
+      ],
+      "dialogueGoal": "与朋友聊一天的作息安排"
+    },
+    {
+      "id": "ko-topik1-u06",
+      "order": 6,
+      "title": "장소와 길",
+      "words": [
+        {
+          "term": "역",
+          "reading": "yeok",
+          "meaning": "车站",
+          "example": "역이 어디예요?",
+          "exampleZh": "车站在哪里？"
+        },
+        {
+          "term": "길",
+          "reading": "gil",
+          "meaning": "路",
+          "example": "이 길로 가세요.",
+          "exampleZh": "走这条路。"
+        },
+        {
+          "term": "공원",
+          "reading": "gongwon",
+          "meaning": "公园",
+          "example": "공원에서 산책해요.",
+          "exampleZh": "在公园散步。"
+        },
+        {
+          "term": "학교",
+          "reading": "hakgyo",
+          "meaning": "学校",
+          "example": "학교에 가요.",
+          "exampleZh": "去学校。"
+        },
+        {
+          "term": "병원",
+          "reading": "byeongwon",
+          "meaning": "医院",
+          "example": "병원에 가야 해요.",
+          "exampleZh": "得去医院。"
+        },
+        {
+          "term": "오른쪽",
+          "reading": "oreunjjok",
+          "meaning": "右边",
+          "example": "오른쪽으로 가세요.",
+          "exampleZh": "往右走。"
+        },
+        {
+          "term": "왼쪽",
+          "reading": "oenjjok",
+          "meaning": "左边",
+          "example": "왼쪽에 있어요.",
+          "exampleZh": "在左边。"
+        },
+        {
+          "term": "똑바로",
+          "reading": "ttokbaro",
+          "meaning": "一直；径直",
+          "example": "똑바로 가세요.",
+          "exampleZh": "请直走。"
+        },
+        {
+          "term": "가깝다",
+          "reading": "gakkapda",
+          "meaning": "近",
+          "example": "학교가 가까워요.",
+          "exampleZh": "学校很近。"
+        },
+        {
+          "term": "멀다",
+          "reading": "meolda",
+          "meaning": "远",
+          "example": "공항은 멀어요.",
+          "exampleZh": "机场很远。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "~은/는 어디예요?",
+          "meaning": "～在哪里？",
+          "example": "역이 어디예요?",
+          "exampleZh": "车站在哪里？"
+        },
+        {
+          "pattern": "똑바로 가세요.",
+          "meaning": "请直走。",
+          "example": "똑바로 가세요.",
+          "exampleZh": "请直走。"
+        },
+        {
+          "pattern": "~은/는 왼쪽에 있어요.",
+          "meaning": "～在左边。",
+          "example": "공원은 왼쪽에 있어요.",
+          "exampleZh": "公园在左边。"
+        }
+      ],
+      "dialogueGoal": "向路人问路并理解方向指引"
+    },
+    {
+      "id": "ko-topik1-u07",
+      "order": 7,
+      "title": "쇼핑",
+      "words": [
+        {
+          "term": "쇼핑",
+          "reading": "syoping",
+          "meaning": "购物",
+          "example": "백화점에서 쇼핑해요.",
+          "exampleZh": "在百货店购物。"
+        },
+        {
+          "term": "가게",
+          "reading": "gage",
+          "meaning": "店",
+          "example": "이 가게는 싸요.",
+          "exampleZh": "这家店便宜。"
+        },
+        {
+          "term": "사다",
+          "reading": "sada",
+          "meaning": "买",
+          "example": "구두를 사요.",
+          "exampleZh": "买皮鞋。"
+        },
+        {
+          "term": "돈",
+          "reading": "don",
+          "meaning": "钱",
+          "example": "돈이 없어요.",
+          "exampleZh": "没有钱。"
+        },
+        {
+          "term": "얼마",
+          "reading": "eolma",
+          "meaning": "多少（钱）",
+          "example": "이거 얼마예요?",
+          "exampleZh": "这个多少钱？"
+        },
+        {
+          "term": "비싸다",
+          "reading": "bissada",
+          "meaning": "贵",
+          "example": "너무 비싸요.",
+          "exampleZh": "太贵了。"
+        },
+        {
+          "term": "싸다",
+          "reading": "ssada",
+          "meaning": "便宜",
+          "example": "조금 싼 거 있어요?",
+          "exampleZh": "有便宜一点的吗？"
+        },
+        {
+          "term": "구두",
+          "reading": "gudu",
+          "meaning": "皮鞋",
+          "example": "구두를 보여 주세요.",
+          "exampleZh": "请给我看看皮鞋。"
+        },
+        {
+          "term": "가방",
+          "reading": "gabang",
+          "meaning": "包",
+          "example": "이 가방은 좋아요.",
+          "exampleZh": "这个包不错。"
+        },
+        {
+          "term": "옷",
+          "reading": "ot",
+          "meaning": "衣服",
+          "example": "옷을 입어 봐요.",
+          "exampleZh": "试穿衣服。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "이거 얼마예요?",
+          "meaning": "这个多少钱？",
+          "example": "이거 얼마예요?",
+          "exampleZh": "这个多少钱？"
+        },
+        {
+          "pattern": "~을/를 주세요.",
+          "meaning": "请给我拿～。",
+          "example": "저 옷을 주세요.",
+          "exampleZh": "请给我拿那件衣服。"
+        },
+        {
+          "pattern": "조금 싼 거 있어요?",
+          "meaning": "有便宜一点的吗？",
+          "example": "조금 싼 거 있어요?",
+          "exampleZh": "有便宜一点的吗？"
+        }
+      ],
+      "dialogueGoal": "在商店用韩语询价、讲价并完成购买"
+    },
+    {
+      "id": "ko-topik1-u08",
+      "order": 8,
+      "title": "취미와 날씨",
+      "words": [
+        {
+          "term": "날씨",
+          "reading": "nalssi",
+          "meaning": "天气",
+          "example": "오늘 날씨가 좋아요.",
+          "exampleZh": "今天天气好。"
+        },
+        {
+          "term": "비",
+          "reading": "bi",
+          "meaning": "雨",
+          "example": "비가 와요.",
+          "exampleZh": "下雨了。"
+        },
+        {
+          "term": "눈",
+          "reading": "nun",
+          "meaning": "雪",
+          "example": "눈이 와요.",
+          "exampleZh": "下雪了。"
+        },
+        {
+          "term": "덥다",
+          "reading": "deopda",
+          "meaning": "热",
+          "example": "오늘은 더워요.",
+          "exampleZh": "今天很热。"
+        },
+        {
+          "term": "춥다",
+          "reading": "chupda",
+          "meaning": "冷",
+          "example": "내일은 추울 거예요.",
+          "exampleZh": "明天会冷。"
+        },
+        {
+          "term": "취미",
+          "reading": "chwimi",
+          "meaning": "爱好",
+          "example": "취미가 뭐예요?",
+          "exampleZh": "你的爱好是什么？"
+        },
+        {
+          "term": "좋아하다",
+          "reading": "joahada",
+          "meaning": "喜欢",
+          "example": "음악을 좋아해요.",
+          "exampleZh": "喜欢音乐。"
+        },
+        {
+          "term": "싫어하다",
+          "reading": "sirohada",
+          "meaning": "讨厌",
+          "example": "요리를 싫어해요.",
+          "exampleZh": "讨厌做饭。"
+        },
+        {
+          "term": "노래",
+          "reading": "norae",
+          "meaning": "歌",
+          "example": "노래를 불러요.",
+          "exampleZh": "唱歌。"
+        },
+        {
+          "term": "음악",
+          "reading": "eumak",
+          "meaning": "音乐",
+          "example": "음악을 들어요.",
+          "exampleZh": "听音乐。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "~을/를 좋아해요.",
+          "meaning": "喜欢～。",
+          "example": "음악을 좋아해요.",
+          "exampleZh": "喜欢音乐。"
+        },
+        {
+          "pattern": "날씨가 좋아요/더워요/추워요.",
+          "meaning": "天气好/热/冷。",
+          "example": "날씨가 좋아요.",
+          "exampleZh": "天气好。"
+        },
+        {
+          "pattern": "취미가 뭐예요?",
+          "meaning": "爱好是什么？",
+          "example": "취미가 뭐예요?",
+          "exampleZh": "爱好是什么？"
+        }
+      ],
+      "dialogueGoal": "与朋友聊爱好和当天的天气"
+    }
+  ]
+}

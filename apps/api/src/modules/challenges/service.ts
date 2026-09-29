@@ -10,6 +10,8 @@ export interface ChallengeProgress {
   id: string;
   tier: Challenge["tier"];
   order: number;
+  /** 所属单元（课程分组标题） */
+  group: string;
   title: string;
   description: string;
   rewardCents: number;
@@ -99,6 +101,7 @@ export class ChallengeService {
           id: c.id,
           tier: c.tier,
           order: c.order,
+          group: c.group,
           title: c.title,
           description: c.description,
           rewardCents: c.rewardCents,
@@ -171,8 +174,9 @@ export class ChallengeService {
     for (const c of all) {
       if (c.scenarioId === scenarioId) return c.lang;
     }
-    // 未映射的情景（如自由练习）：用前缀判断
-    if (/-(ja|ko)$/.test(scenarioId)) return scenarioId.endsWith("-ja") ? "ja" : "ko";
-    return null;
+    // 未映射的情景（如自由练习）：用后缀判断；无后缀默认英语
+    if (scenarioId.endsWith("-ja")) return "ja";
+    if (scenarioId.endsWith("-ko")) return "ko";
+    return "en";
   }
 }

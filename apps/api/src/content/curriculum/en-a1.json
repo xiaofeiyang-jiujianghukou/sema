@@ -1,0 +1,193 @@
+{
+  "courseId": "en-a1",
+  "lang": "en",
+  "band": "A1",
+  "title": "英语入门（CEFR A1）",
+  "description": "对齐 CEFR A1 大纲的第一册课程：8 单元 × 10 词 × 3 句型，配套对话应用关卡",
+  "units": [
+    {
+      "id": "en-a1-u01",
+      "order": 1,
+      "title": "问候与自我介绍",
+      "words": [
+        {"term": "hello", "meaning": "int. 你好", "example": "Hello, my name is Li Ming.", "exampleZh": "你好，我叫李明。"},
+        {"term": "hi", "meaning": "int. 嗨；你好", "example": "Hi, I am Tom.", "exampleZh": "嗨，我是汤姆。"},
+        {"term": "goodbye", "meaning": "int. 再见", "example": "Goodbye, see you tomorrow.", "exampleZh": "再见，明天见。"},
+        {"term": "name", "meaning": "n. 名字", "example": "My name is Anna.", "exampleZh": "我叫安娜。"},
+        {"term": "nice", "meaning": "adj. 好的；令人愉快的", "example": "She is very nice.", "exampleZh": "她人很好。"},
+        {"term": "meet", "meaning": "v. 认识；见面", "example": "Nice to meet you.", "exampleZh": "很高兴认识你。"},
+        {"term": "morning", "meaning": "n. 早晨；上午", "example": "Good morning, Miss Li.", "exampleZh": "早上好，李老师。"},
+        {"term": "afternoon", "meaning": "n. 下午", "example": "Good afternoon, Mr. Wang.", "exampleZh": "下午好，王先生。"},
+        {"term": "evening", "meaning": "n. 晚上；傍晚", "example": "Good evening, Dad.", "exampleZh": "晚上好，爸爸。"},
+        {"term": "teacher", "meaning": "n. 老师", "example": "My teacher is very kind.", "exampleZh": "我的老师很和善。"}
+      ],
+      "patterns": [
+        {"pattern": "My name is ~.", "meaning": "我叫～。", "example": "My name is Li Ming.", "exampleZh": "我叫李明。"},
+        {"pattern": "Nice to meet you.", "meaning": "很高兴认识你。", "example": "Hi, Anna. Nice to meet you.", "exampleZh": "嗨，安娜。很高兴认识你。"},
+        {"pattern": "How are you? — I'm fine, thanks.", "meaning": "你好吗？——我很好，谢谢。", "example": "How are you? — I'm fine, thank you.", "exampleZh": "你好吗？——我很好，谢谢。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与新同学/朋友完成问候并自我介绍"
+    },
+    {
+      "id": "en-a1-u02",
+      "order": 2,
+      "title": "数字与时间",
+      "words": [
+        {"term": "one", "meaning": "num. 一（1）", "example": "I have one brother.", "exampleZh": "我有一个哥哥。"},
+        {"term": "two", "meaning": "num. 二（2）", "example": "She has two cats.", "exampleZh": "她有两只猫。"},
+        {"term": "three", "meaning": "num. 三（3）", "example": "I need three pens.", "exampleZh": "我需要三支钢笔。"},
+        {"term": "four", "meaning": "num. 四（4）", "example": "My room is number four.", "exampleZh": "我的房间是四号。"},
+        {"term": "five", "meaning": "num. 五（5）", "example": "I go home at five.", "exampleZh": "我五点回家。"},
+        {"term": "six", "meaning": "num. 六（6）", "example": "There are six chairs.", "exampleZh": "有六把椅子。"},
+        {"term": "seven", "meaning": "num. 七（7）", "example": "Class starts at seven.", "exampleZh": "七点开始上课。"},
+        {"term": "eight", "meaning": "num. 八（8）", "example": "It is eight o'clock now.", "exampleZh": "现在是八点。"},
+        {"term": "nine", "meaning": "num. 九（9）", "example": "The class has nine desks.", "exampleZh": "教室里有九张课桌。"},
+        {"term": "ten", "meaning": "num. 十（10）", "example": "The shop closes at ten.", "exampleZh": "商店十点关门。"}
+      ],
+      "patterns": [
+        {"pattern": "What time is it?", "meaning": "现在几点了？", "example": "What time is it? — It's seven o'clock.", "exampleZh": "现在几点了？——现在七点。"},
+        {"pattern": "It's half past ~.", "meaning": "现在是～点半。", "example": "It's half past ten.", "exampleZh": "现在是十点半。"},
+        {"pattern": "It's time for ~.", "meaning": "到～的时间了。", "example": "It's time for class.", "exampleZh": "到上课的时间了。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与同伴问答时间并说出自己的时间安排"
+    },
+    {
+      "id": "en-a1-u03",
+      "order": 3,
+      "title": "家庭与朋友",
+      "words": [
+        {"term": "family", "meaning": "n. 家；家庭", "example": "This is a photo of my family.", "exampleZh": "这是一张我的全家福。"},
+        {"term": "father", "meaning": "n. 爸爸；父亲", "example": "My father is a doctor.", "exampleZh": "我爸爸是医生。"},
+        {"term": "mother", "meaning": "n. 妈妈；母亲", "example": "My mother cooks well.", "exampleZh": "我妈妈做饭做得好。"},
+        {"term": "brother", "meaning": "n. 哥哥；弟弟", "example": "My brother is ten years old.", "exampleZh": "我弟弟十岁。"},
+        {"term": "sister", "meaning": "n. 姐姐；妹妹", "example": "My sister likes music.", "exampleZh": "我妹妹喜欢音乐。"},
+        {"term": "grandpa", "meaning": "n. 爷爷；外公", "example": "My grandpa lives with us.", "exampleZh": "我爷爷和我们住在一起。"},
+        {"term": "grandma", "meaning": "n. 奶奶；外婆", "example": "My grandma makes good cakes.", "exampleZh": "我奶奶做的蛋糕很好吃。"},
+        {"term": "friend", "meaning": "n. 朋友", "example": "Tom is my best friend.", "exampleZh": "汤姆是我最好的朋友。"},
+        {"term": "love", "meaning": "v. 爱；热爱", "example": "I love you, Mom.", "exampleZh": "我爱你，妈妈。"},
+        {"term": "baby", "meaning": "n. 婴儿", "example": "The baby is very cute.", "exampleZh": "这个婴儿很可爱。"}
+      ],
+      "patterns": [
+        {"pattern": "This is my ~.", "meaning": "这是我的～。", "example": "This is my sister.", "exampleZh": "这是我的妹妹。"},
+        {"pattern": "I have ~.", "meaning": "我有～。", "example": "I have a big family.", "exampleZh": "我有一个大家庭。"},
+        {"pattern": "Is this your ~? — Yes, it is.", "meaning": "这是你的～吗？——是的。", "example": "Is this your brother? — Yes, it is.", "exampleZh": "这是你的哥哥吗？——是的。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，向朋友介绍自己的家人并询问对方家人"
+    },
+    {
+      "id": "en-a1-u04",
+      "order": 4,
+      "title": "食物与点餐",
+      "words": [
+        {"term": "rice", "meaning": "n. 米饭", "example": "I eat rice for lunch.", "exampleZh": "我午餐吃米饭。"},
+        {"term": "bread", "meaning": "n. 面包", "example": "I have bread for breakfast.", "exampleZh": "我早餐吃面包。"},
+        {"term": "egg", "meaning": "n. 鸡蛋", "example": "I want an egg.", "exampleZh": "我想要一个鸡蛋。"},
+        {"term": "milk", "meaning": "n. 牛奶", "example": "The milk is on the table.", "exampleZh": "牛奶在桌子上。"},
+        {"term": "water", "meaning": "n. 水", "example": "I drink a lot of water.", "exampleZh": "我喝很多水。"},
+        {"term": "apple", "meaning": "n. 苹果", "example": "This apple is very sweet.", "exampleZh": "这个苹果很甜。"},
+        {"term": "chicken", "meaning": "n. 鸡肉", "example": "I like chicken very much.", "exampleZh": "我非常喜欢鸡肉。"},
+        {"term": "fish", "meaning": "n. 鱼", "example": "We have fish for dinner.", "exampleZh": "我们晚餐吃鱼。"},
+        {"term": "juice", "meaning": "n. 果汁", "example": "Would you like some juice?", "exampleZh": "你想要一些果汁吗？"},
+        {"term": "hungry", "meaning": "adj. 饥饿的", "example": "I am hungry now.", "exampleZh": "我现在饿了。"}
+      ],
+      "patterns": [
+        {"pattern": "I'd like ~, please.", "meaning": "我想要～。", "example": "I'd like some rice, please.", "exampleZh": "我想要一些米饭。"},
+        {"pattern": "What would you like?", "meaning": "你想要什么？", "example": "What would you like? — Some milk, please.", "exampleZh": "你想要什么？——请给我牛奶。"},
+        {"pattern": "Can I have ~, please?", "meaning": "请给我～好吗？", "example": "Can I have some water, please?", "exampleZh": "请给我一些水好吗？"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与餐厅服务员完成点餐对话"
+    },
+    {
+      "id": "en-a1-u05",
+      "order": 5,
+      "title": "日常作息",
+      "words": [
+        {"term": "get up", "meaning": "v. 起床", "example": "I get up at six thirty.", "exampleZh": "我六点半起床。"},
+        {"term": "breakfast", "meaning": "n. 早餐", "example": "I have breakfast at seven.", "exampleZh": "我七点吃早餐。"},
+        {"term": "lunch", "meaning": "n. 午餐", "example": "We eat lunch at school.", "exampleZh": "我们在学校吃午餐。"},
+        {"term": "dinner", "meaning": "n. 晚餐", "example": "Dinner is ready at six.", "exampleZh": "晚餐六点准备好。"},
+        {"term": "school", "meaning": "n. 学校", "example": "Our school is very big.", "exampleZh": "我们学校很大。"},
+        {"term": "work", "meaning": "n. 工作", "example": "Dad goes to work by bus.", "exampleZh": "爸爸坐公共汽车去上班。"},
+        {"term": "bed", "meaning": "n. 床", "example": "I go to bed at nine.", "exampleZh": "我九点上床睡觉。"},
+        {"term": "sleep", "meaning": "v. 睡觉", "example": "The baby sleeps a lot.", "exampleZh": "这个婴儿睡得很多。"},
+        {"term": "early", "meaning": "adj. 早的", "example": "She comes to school early.", "exampleZh": "她很早到学校。"},
+        {"term": "late", "meaning": "adj. 迟的；晚的", "example": "Don't be late for class.", "exampleZh": "上课不要迟到。"}
+      ],
+      "patterns": [
+        {"pattern": "I get up at ~.", "meaning": "我～点起床。", "example": "I get up at seven.", "exampleZh": "我七点起床。"},
+        {"pattern": "I go to school at ~.", "meaning": "我～点去上学。", "example": "I go to school at eight.", "exampleZh": "我八点去上学。"},
+        {"pattern": "What time do you ~?", "meaning": "你几点～？", "example": "What time do you have dinner?", "exampleZh": "你几点吃晚饭？"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与同伴问答一天的作息时间"
+    },
+    {
+      "id": "en-a1-u06",
+      "order": 6,
+      "title": "地点与问路",
+      "words": [
+        {"term": "park", "meaning": "n. 公园", "example": "We walk in the park.", "exampleZh": "我们在公园里散步。"},
+        {"term": "street", "meaning": "n. 街道", "example": "Our street is very quiet.", "exampleZh": "我们这条街很安静。"},
+        {"term": "hospital", "meaning": "n. 医院", "example": "My aunt works in a hospital.", "exampleZh": "我姑姑在医院工作。"},
+        {"term": "bank", "meaning": "n. 银行", "example": "There is a bank near here.", "exampleZh": "这附近有一家银行。"},
+        {"term": "station", "meaning": "n. 车站", "example": "I wait at the station.", "exampleZh": "我在车站等。"},
+        {"term": "hotel", "meaning": "n. 旅馆", "example": "The hotel is next to the park.", "exampleZh": "旅馆紧挨着公园。"},
+        {"term": "shop", "meaning": "n. 商店", "example": "Mum buys bread at the shop.", "exampleZh": "妈妈在商店买面包。"},
+        {"term": "left", "meaning": "n. 左边", "example": "The school is on the left.", "exampleZh": "学校在左边。"},
+        {"term": "right", "meaning": "n. 右边", "example": "The park is on the right.", "exampleZh": "公园在右边。"},
+        {"term": "near", "meaning": "prep. 在…附近", "example": "I live near the school.", "exampleZh": "我住在学校附近。"}
+      ],
+      "patterns": [
+        {"pattern": "Where is ~?", "meaning": "～在哪里？", "example": "Where is the station?", "exampleZh": "车站在哪里？"},
+        {"pattern": "Turn left/right at ~.", "meaning": "在～处左转/右转。", "example": "Turn right at the bank.", "exampleZh": "在银行处右转。"},
+        {"pattern": "It's near/next to ~.", "meaning": "它在～附近/紧挨着～。", "example": "The park is near my home.", "exampleZh": "公园在我家附近。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，向路人询问地点与路线"
+    },
+    {
+      "id": "en-a1-u07",
+      "order": 7,
+      "title": "购物与价格",
+      "words": [
+        {"term": "buy", "meaning": "v. 买", "example": "I want to buy a book.", "exampleZh": "我想买一本书。"},
+        {"term": "store", "meaning": "n. 商店", "example": "The store opens at nine.", "exampleZh": "商店九点开门。"},
+        {"term": "money", "meaning": "n. 钱", "example": "I don't have much money.", "exampleZh": "我的钱不多。"},
+        {"term": "price", "meaning": "n. 价格", "example": "The price is very low.", "exampleZh": "价格很低。"},
+        {"term": "cheap", "meaning": "adj. 便宜的", "example": "This book is very cheap.", "exampleZh": "这本书很便宜。"},
+        {"term": "expensive", "meaning": "adj. 昂贵的", "example": "That bike is too expensive.", "exampleZh": "那辆自行车太贵了。"},
+        {"term": "clothes", "meaning": "n. 衣服", "example": "She buys clothes in that store.", "exampleZh": "她在那家商店买衣服。"},
+        {"term": "shoes", "meaning": "n. 鞋子", "example": "These shoes are nice.", "exampleZh": "这双鞋很好看。"},
+        {"term": "dollar", "meaning": "n. 美元", "example": "This pen is one dollar.", "exampleZh": "这支钢笔一美元。"},
+        {"term": "yuan", "meaning": "n. 元（人民币）", "example": "The water is two yuan.", "exampleZh": "这瓶水两元。"}
+      ],
+      "patterns": [
+        {"pattern": "How much is ~?", "meaning": "～多少钱？", "example": "How much is this bag?", "exampleZh": "这个包多少钱？"},
+        {"pattern": "It's ~ yuan.", "meaning": "～元。", "example": "It's ten yuan.", "exampleZh": "十元。"},
+        {"pattern": "Can I help you?", "meaning": "需要帮忙吗？（店员用语）", "example": "Can I help you? — I want these shoes, please.", "exampleZh": "需要帮忙吗？——我想买这双鞋。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与商店店员完成问价与购买对话"
+    },
+    {
+      "id": "en-a1-u08",
+      "order": 8,
+      "title": "爱好与天气",
+      "words": [
+        {"term": "play", "meaning": "v. 玩；打（球）", "example": "I play basketball after school.", "exampleZh": "我放学后打篮球。"},
+        {"term": "read", "meaning": "v. 读；阅读", "example": "I read books at night.", "exampleZh": "我晚上看书。"},
+        {"term": "sing", "meaning": "v. 唱（歌）", "example": "Let's sing a song.", "exampleZh": "我们唱首歌吧。"},
+        {"term": "swim", "meaning": "v. 游泳", "example": "I can swim very fast.", "exampleZh": "我游泳游得很快。"},
+        {"term": "music", "meaning": "n. 音乐", "example": "I listen to music every day.", "exampleZh": "我每天听音乐。"},
+        {"term": "sunny", "meaning": "adj. 晴朗的", "example": "It is sunny today.", "exampleZh": "今天天气晴朗。"},
+        {"term": "rain", "meaning": "n. 雨；v. 下雨", "example": "I don't like the rain.", "exampleZh": "我不喜欢下雨。"},
+        {"term": "snow", "meaning": "n. 雪；v. 下雪", "example": "The snow is white.", "exampleZh": "雪是白色的。"},
+        {"term": "hot", "meaning": "adj. 热的", "example": "It is hot in summer.", "exampleZh": "夏天天气很热。"},
+        {"term": "cold", "meaning": "adj. 冷的", "example": "It is cold in winter.", "exampleZh": "冬天天气很冷。"}
+      ],
+      "patterns": [
+        {"pattern": "I like ~.", "meaning": "我喜欢～。", "example": "I like playing football.", "exampleZh": "我喜欢踢足球。"},
+        {"pattern": "What's the weather like?", "meaning": "天气怎么样？", "example": "What's the weather like? — It's sunny.", "exampleZh": "天气怎么样？——天气晴朗。"},
+        {"pattern": "Let's ~.", "meaning": "我们～吧。", "example": "Let's go swimming.", "exampleZh": "我们去游泳吧。"}
+      ],
+      "dialogueGoal": "用本课词汇句型，与朋友谈论爱好并根据天气商量活动"
+    }
+  ]
+}

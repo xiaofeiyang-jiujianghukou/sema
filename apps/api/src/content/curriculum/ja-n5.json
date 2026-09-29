@@ -1,0 +1,988 @@
+{
+  "courseId": "ja-n5",
+  "lang": "ja",
+  "band": "N5",
+  "title": "日语入门（JLPT N5）",
+  "description": "对齐 JLPT N5 大纲的第一册课程：8 单元 × 10 词 × 3 句型，配套对话应用关卡",
+  "units": [
+    {
+      "id": "ja-n5-u01",
+      "order": 1,
+      "title": "挨拶と自己紹介",
+      "words": [
+        {
+          "term": "こんにちは",
+          "reading": "konnichiwa",
+          "meaning": "你好（白天问候）",
+          "example": "こんにちは、李さん。",
+          "exampleZh": "小李，你好。",
+          "variants": [
+            "こんにちは"
+          ]
+        },
+        {
+          "term": "おはよう",
+          "reading": "ohayou",
+          "meaning": "早上好",
+          "example": "おはようございます。",
+          "exampleZh": "早上好。（礼貌）",
+          "variants": [
+            "おはようございます"
+          ]
+        },
+        {
+          "term": "ありがとう",
+          "reading": "arigatou",
+          "meaning": "谢谢",
+          "example": "どうもありがとう。",
+          "exampleZh": "非常感谢。",
+          "variants": [
+            "ありがとうございます",
+            "有難う"
+          ]
+        },
+        {
+          "term": "すみません",
+          "reading": "sumimasen",
+          "meaning": "不好意思；请问",
+          "example": "すみません、えきはどこですか。",
+          "exampleZh": "请问，车站在哪？",
+          "variants": [
+            "済みません"
+          ]
+        },
+        {
+          "term": "はい",
+          "reading": "hai",
+          "meaning": "是；好的",
+          "example": "はい、そうです。",
+          "exampleZh": "是的，是那样的。"
+        },
+        {
+          "term": "いいえ",
+          "reading": "iie",
+          "meaning": "不是；不",
+          "example": "いいえ、ちがいます。",
+          "exampleZh": "不，不是的。"
+        },
+        {
+          "term": "わたし",
+          "reading": "watashi",
+          "meaning": "我",
+          "example": "わたしは学生です。",
+          "exampleZh": "我是学生。",
+          "variants": [
+            "私"
+          ]
+        },
+        {
+          "term": "なまえ",
+          "reading": "namae",
+          "meaning": "名字",
+          "example": "おなまえはなんですか。",
+          "exampleZh": "您叫什么名字？",
+          "variants": [
+            "名前"
+          ]
+        },
+        {
+          "term": "せんせい",
+          "reading": "sensei",
+          "meaning": "老师",
+          "example": "田中先生は先生です。",
+          "exampleZh": "田中老师是老师。",
+          "variants": [
+            "先生"
+          ]
+        },
+        {
+          "term": "がくせい",
+          "reading": "gakusei",
+          "meaning": "学生",
+          "example": "わたしはがくせいです。",
+          "exampleZh": "我是学生。",
+          "variants": [
+            "学生"
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "～は～です。",
+          "meaning": "～是～。",
+          "example": "わたしは学生です。",
+          "exampleZh": "我是学生。"
+        },
+        {
+          "pattern": "おなまえはなんですか。",
+          "meaning": "您叫什么名字？",
+          "example": "おなまえはなんですか。",
+          "exampleZh": "您叫什么名字？"
+        },
+        {
+          "pattern": "～からきました。",
+          "meaning": "我来自～。",
+          "example": "中国からきました。",
+          "exampleZh": "我来自中国。"
+        }
+      ],
+      "dialogueGoal": "与对方互相问候并完成自我介绍（名字、来自哪里、身份）"
+    },
+    {
+      "id": "ja-n5-u02",
+      "order": 2,
+      "title": "数字と時間",
+      "words": [
+        {
+          "term": "いち",
+          "reading": "ichi",
+          "meaning": "一（1）",
+          "example": "コーヒーをいっぱい。",
+          "exampleZh": "一杯咖啡。"
+        },
+        {
+          "term": "じゅう",
+          "reading": "juu",
+          "meaning": "十（10）",
+          "example": "十ぷんまちました。",
+          "exampleZh": "等了十分钟。"
+        },
+        {
+          "term": "ひゃく",
+          "reading": "hyaku",
+          "meaning": "百（100）",
+          "example": "ひゃくえんです。",
+          "exampleZh": "100 日元。"
+        },
+        {
+          "term": "いま",
+          "reading": "ima",
+          "meaning": "现在",
+          "example": "いまなんじですか。",
+          "exampleZh": "现在几点？",
+          "variants": [
+            "今"
+          ]
+        },
+        {
+          "term": "なんじ",
+          "reading": "nanji",
+          "meaning": "几点",
+          "example": "なんじにおきますか。",
+          "exampleZh": "你几点起床？"
+        },
+        {
+          "term": "じ",
+          "reading": "ji",
+          "meaning": "…点钟",
+          "example": "いま9じです。",
+          "exampleZh": "现在 9 点。"
+        },
+        {
+          "term": "はん",
+          "reading": "han",
+          "meaning": "…点半",
+          "example": "9じはんです。",
+          "exampleZh": "9 点半。"
+        },
+        {
+          "term": "きょう",
+          "reading": "kyou",
+          "meaning": "今天",
+          "example": "きょうはげつようびです。",
+          "exampleZh": "今天是星期一。",
+          "variants": [
+            "今日"
+          ]
+        },
+        {
+          "term": "あした",
+          "reading": "ashita",
+          "meaning": "明天",
+          "example": "あしたはやすみです。",
+          "exampleZh": "明天休息。",
+          "variants": [
+            "明日"
+          ]
+        },
+        {
+          "term": "げつようび",
+          "reading": "getsuyoubi",
+          "meaning": "星期一",
+          "example": "げつようびにがっこうへいきます。",
+          "exampleZh": "星期一去学校。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "いま～じです。",
+          "meaning": "现在是～点。",
+          "example": "いま3じです。",
+          "exampleZh": "现在 3 点。"
+        },
+        {
+          "pattern": "～はなんじからですか。",
+          "meaning": "～从几点开始？",
+          "example": "こうぎはなんじからですか。",
+          "exampleZh": "讲座从几点开始？"
+        },
+        {
+          "pattern": "きょうは～ようびです。",
+          "meaning": "今天是星期～。",
+          "example": "きょうはかようびです。",
+          "exampleZh": "今天是星期二。"
+        }
+      ],
+      "dialogueGoal": "与同学确认时间与日期，约定见面时间"
+    },
+    {
+      "id": "ja-n5-u03",
+      "order": 3,
+      "title": "家族と人",
+      "words": [
+        {
+          "term": "かぞく",
+          "reading": "kazoku",
+          "meaning": "家人",
+          "example": "かぞくは4にんです。",
+          "exampleZh": "我家有 4 口人。",
+          "variants": [
+            "家族"
+          ]
+        },
+        {
+          "term": "ちち",
+          "reading": "chichi",
+          "meaning": "（我的）父亲",
+          "example": "ちちはこうむいんですか。",
+          "exampleZh": "你父亲是公务员吗？",
+          "variants": [
+            "父"
+          ]
+        },
+        {
+          "term": "はは",
+          "reading": "haha",
+          "meaning": "（我的）母亲",
+          "example": "はははしゅふです。",
+          "exampleZh": "我母亲是家庭主妇。",
+          "variants": [
+            "母"
+          ]
+        },
+        {
+          "term": "あに",
+          "reading": "ani",
+          "meaning": "哥哥",
+          "example": "あにはだいがくせいです。",
+          "exampleZh": "我哥哥是大学生。",
+          "variants": [
+            "兄"
+          ]
+        },
+        {
+          "term": "あね",
+          "reading": "ane",
+          "meaning": "姐姐",
+          "example": "あねは24さいです。",
+          "exampleZh": "我姐姐 24 岁。",
+          "variants": [
+            "姉"
+          ]
+        },
+        {
+          "term": "おとうと",
+          "reading": "otouto",
+          "meaning": "弟弟",
+          "example": "おとうとはこうこうせいです。",
+          "exampleZh": "我弟弟是高中生。",
+          "variants": [
+            "弟"
+          ]
+        },
+        {
+          "term": "いもうと",
+          "reading": "imouto",
+          "meaning": "妹妹",
+          "example": "いもうとはこどもです。",
+          "exampleZh": "我妹妹是小孩。",
+          "variants": [
+            "妹"
+          ]
+        },
+        {
+          "term": "ともだち",
+          "reading": "tomodachi",
+          "meaning": "朋友",
+          "example": "ともだちとはなします。",
+          "exampleZh": "和朋友聊天。",
+          "variants": [
+            "友達"
+          ]
+        },
+        {
+          "term": "こども",
+          "reading": "kodomo",
+          "meaning": "孩子",
+          "example": "こどもがふたりいます。",
+          "exampleZh": "有两个孩子。",
+          "variants": [
+            "子供"
+          ]
+        },
+        {
+          "term": "ひと",
+          "reading": "hito",
+          "meaning": "人",
+          "example": "あのひとはだれですか。",
+          "exampleZh": "那个人是谁？",
+          "variants": [
+            "人"
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "かぞくは～にんです。",
+          "meaning": "我家有～口人。",
+          "example": "かぞくは5にんです。",
+          "exampleZh": "我家有 5 口人。"
+        },
+        {
+          "pattern": "これはわたしの～です。",
+          "meaning": "这是我的～。",
+          "example": "これはわたしのあにです。",
+          "exampleZh": "这是我哥哥。"
+        },
+        {
+          "pattern": "～はなんさいですか。",
+          "meaning": "～几岁了？",
+          "example": "いもうとはなんさいですか。",
+          "exampleZh": "妹妹几岁了？"
+        }
+      ],
+      "dialogueGoal": "向对方介绍自己的家人（人数、称呼、年龄）"
+    },
+    {
+      "id": "ja-n5-u04",
+      "order": 4,
+      "title": "食べ物と飲み物",
+      "words": [
+        {
+          "term": "みず",
+          "reading": "mizu",
+          "meaning": "水",
+          "example": "みずをください。",
+          "exampleZh": "请给我水。",
+          "variants": [
+            "水"
+          ]
+        },
+        {
+          "term": "おちゃ",
+          "reading": "ocha",
+          "meaning": "茶",
+          "example": "おちゃをのみます。",
+          "exampleZh": "喝茶。",
+          "variants": [
+            "お茶"
+          ]
+        },
+        {
+          "term": "ぎゅうにゅう",
+          "reading": "gyuunyuu",
+          "meaning": "牛奶",
+          "example": "まいあさぎゅうにゅうをのみます。",
+          "exampleZh": "每天早上喝牛奶。",
+          "variants": [
+            "牛乳"
+          ]
+        },
+        {
+          "term": "ごはん",
+          "reading": "gohan",
+          "meaning": "米饭；饭",
+          "example": "ごはんをたべます。",
+          "exampleZh": "吃饭。",
+          "variants": [
+            "ご飯"
+          ]
+        },
+        {
+          "term": "パン",
+          "reading": "pan",
+          "meaning": "面包",
+          "example": "あさはパンをたべます。",
+          "exampleZh": "早上吃面包。"
+        },
+        {
+          "term": "たまご",
+          "reading": "tamago",
+          "meaning": "鸡蛋",
+          "example": "たまごがすきです。",
+          "exampleZh": "喜欢吃鸡蛋。",
+          "variants": [
+            "卵",
+            "玉子"
+          ]
+        },
+        {
+          "term": "にく",
+          "reading": "niku",
+          "meaning": "肉",
+          "example": "にくはあまりたべません。",
+          "exampleZh": "肉不怎么吃。"
+        },
+        {
+          "term": "やさい",
+          "reading": "yasai",
+          "meaning": "蔬菜",
+          "example": "やさいをかいます。",
+          "exampleZh": "买蔬菜。",
+          "variants": [
+            "野菜"
+          ]
+        },
+        {
+          "term": "くだもの",
+          "reading": "kudamono",
+          "meaning": "水果",
+          "example": "くだものがだいすきです。",
+          "exampleZh": "最喜欢水果。",
+          "variants": [
+            "果物"
+          ]
+        },
+        {
+          "term": "おいしい",
+          "reading": "oishii",
+          "meaning": "好吃的",
+          "example": "このみせはおいしいです。",
+          "exampleZh": "这家店很好吃。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "～をたべます。",
+          "meaning": "吃～。",
+          "example": "パンをたべます。",
+          "exampleZh": "吃面包。"
+        },
+        {
+          "pattern": "～がすきです。",
+          "meaning": "喜欢～。",
+          "example": "コーヒーがすきです。",
+          "exampleZh": "喜欢咖啡。"
+        },
+        {
+          "pattern": "～をください。",
+          "meaning": "请给我～。",
+          "example": "みずをください。",
+          "exampleZh": "请给我水。"
+        }
+      ],
+      "dialogueGoal": "在餐厅或咖啡馆用日语点餐并表达喜好"
+    },
+    {
+      "id": "ja-n5-u05",
+      "order": 5,
+      "title": "毎日の生活",
+      "words": [
+        {
+          "term": "おきる",
+          "reading": "okiru",
+          "meaning": "起床",
+          "example": "まいあさ6じにおきます。",
+          "exampleZh": "每天 6 点起床。",
+          "variants": [
+            "起きる"
+          ]
+        },
+        {
+          "term": "ねる",
+          "reading": "neru",
+          "meaning": "睡觉",
+          "example": "まいばん11じにねます。",
+          "exampleZh": "每晚 11 点睡觉。",
+          "variants": [
+            "寝る"
+          ]
+        },
+        {
+          "term": "はたらく",
+          "reading": "hataraku",
+          "meaning": "工作",
+          "example": "としょかんではたらきます。",
+          "exampleZh": "在图书馆工作。",
+          "variants": [
+            "働く"
+          ]
+        },
+        {
+          "term": "べんきょう",
+          "reading": "benkyou",
+          "meaning": "学习",
+          "example": "にほんごをべんきょうします。",
+          "exampleZh": "学日语。",
+          "variants": [
+            "勉強",
+            "べんきょうします"
+          ]
+        },
+        {
+          "term": "たべる",
+          "reading": "taberu",
+          "meaning": "吃",
+          "example": "ひるごはんをたべます。",
+          "exampleZh": "吃午饭。",
+          "variants": [
+            "食べます"
+          ]
+        },
+        {
+          "term": "のむ",
+          "reading": "nomu",
+          "meaning": "喝",
+          "example": "ジュースをのみます。",
+          "exampleZh": "喝果汁。",
+          "variants": [
+            "飲みます"
+          ]
+        },
+        {
+          "term": "みる",
+          "reading": "miru",
+          "meaning": "看",
+          "example": "テレビをみます。",
+          "exampleZh": "看电视。",
+          "variants": [
+            "見ます"
+          ]
+        },
+        {
+          "term": "よむ",
+          "reading": "yomu",
+          "meaning": "读",
+          "example": "ほんをよみます。",
+          "exampleZh": "读书。",
+          "variants": [
+            "読みます"
+          ]
+        },
+        {
+          "term": "しごと",
+          "reading": "shigoto",
+          "meaning": "工作（名词）",
+          "example": "しごとはなんじからですか。",
+          "exampleZh": "工作从几点开始？",
+          "variants": [
+            "仕事"
+          ]
+        },
+        {
+          "term": "やすみ",
+          "reading": "yasumi",
+          "meaning": "休息",
+          "example": "きょうはやすみです。",
+          "exampleZh": "今天休息。",
+          "variants": [
+            "休み"
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "まいあさ～じにおきます。",
+          "meaning": "每天早上～点起床。",
+          "example": "まいあさ7じにおきます。",
+          "exampleZh": "每天早上 7 点起床。"
+        },
+        {
+          "pattern": "～ごろねます。",
+          "meaning": "～点左右睡觉。",
+          "example": "よる12じごろねます。",
+          "exampleZh": "晚上 12 点左右睡觉。"
+        },
+        {
+          "pattern": "まいにち～をします。",
+          "meaning": "每天做～。",
+          "example": "まいにちべんきょうをします。",
+          "exampleZh": "每天学习。"
+        }
+      ],
+      "dialogueGoal": "与朋友聊一天的作息安排"
+    },
+    {
+      "id": "ja-n5-u06",
+      "order": 6,
+      "title": "場所と道",
+      "words": [
+        {
+          "term": "えき",
+          "reading": "eki",
+          "meaning": "车站",
+          "example": "えきはどこですか。",
+          "exampleZh": "车站在哪里？",
+          "variants": [
+            "駅"
+          ]
+        },
+        {
+          "term": "みち",
+          "reading": "michi",
+          "meaning": "路",
+          "example": "このみちはしりますか。",
+          "exampleZh": "你知道这条路吗？",
+          "variants": [
+            "道"
+          ]
+        },
+        {
+          "term": "こうえん",
+          "reading": "kouen",
+          "meaning": "公园",
+          "example": "こうえんではしります。",
+          "exampleZh": "在公园跑步。",
+          "variants": [
+            "公園"
+          ]
+        },
+        {
+          "term": "がっこう",
+          "reading": "gakkou",
+          "meaning": "学校",
+          "example": "がっこうへいきます。",
+          "exampleZh": "去学校。",
+          "variants": [
+            "学校"
+          ]
+        },
+        {
+          "term": "びょういん",
+          "reading": "byouin",
+          "meaning": "医院",
+          "example": "びょういんにいきます。",
+          "exampleZh": "去医院。",
+          "variants": [
+            "病院"
+          ]
+        },
+        {
+          "term": "みぎ",
+          "reading": "migi",
+          "meaning": "右边",
+          "example": "みぎへまがります。",
+          "exampleZh": "向右转。",
+          "variants": [
+            "右"
+          ]
+        },
+        {
+          "term": "ひだり",
+          "reading": "hidari",
+          "meaning": "左边",
+          "example": "ひだりにあります。",
+          "exampleZh": "在左边。",
+          "variants": [
+            "左"
+          ]
+        },
+        {
+          "term": "まっすぐ",
+          "reading": "massugu",
+          "meaning": "笔直；一直",
+          "example": "まっすぐいってください。",
+          "exampleZh": "请直走。"
+        },
+        {
+          "term": "ちかい",
+          "reading": "chikai",
+          "meaning": "近的",
+          "example": "えきはちかいです。",
+          "exampleZh": "车站很近。",
+          "variants": [
+            "近い"
+          ]
+        },
+        {
+          "term": "とおい",
+          "reading": "tooi",
+          "meaning": "远的",
+          "example": "みちがとおいです。",
+          "exampleZh": "路很远。",
+          "variants": [
+            "遠い"
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "～はどこですか。",
+          "meaning": "～在哪里？",
+          "example": "えきはどこですか。",
+          "exampleZh": "车站在哪里？"
+        },
+        {
+          "pattern": "まっすぐいってください。",
+          "meaning": "请直走。",
+          "example": "まっすぐいってください。",
+          "exampleZh": "请直走。"
+        },
+        {
+          "pattern": "～はみぎにあります。",
+          "meaning": "～在右边。",
+          "example": "こうえんはみぎにあります。",
+          "exampleZh": "公园在右边。"
+        }
+      ],
+      "dialogueGoal": "向路人问路并理解方向指引"
+    },
+    {
+      "id": "ja-n5-u07",
+      "order": 7,
+      "title": "買い物",
+      "words": [
+        {
+          "term": "かいもの",
+          "reading": "kaimono",
+          "meaning": "购物",
+          "example": "スーパーでかいものをします。",
+          "exampleZh": "在超市购物。",
+          "variants": [
+            "買い物"
+          ]
+        },
+        {
+          "term": "みせ",
+          "reading": "mise",
+          "meaning": "店",
+          "example": "このみせはやすいです。",
+          "exampleZh": "这家店便宜。",
+          "variants": [
+            "店"
+          ]
+        },
+        {
+          "term": "かう",
+          "reading": "kau",
+          "meaning": "买",
+          "example": "くつをかいます。",
+          "exampleZh": "买鞋。",
+          "variants": [
+            "買います"
+          ]
+        },
+        {
+          "term": "おかね",
+          "reading": "okane",
+          "meaning": "钱",
+          "example": "おかねがありません。",
+          "exampleZh": "没有钱。",
+          "variants": [
+            "お金"
+          ]
+        },
+        {
+          "term": "いくら",
+          "reading": "ikura",
+          "meaning": "多少钱",
+          "example": "これはいくらですか。",
+          "exampleZh": "这个多少钱？"
+        },
+        {
+          "term": "たかい",
+          "reading": "takai",
+          "meaning": "贵的",
+          "example": "このかばんはたかいです。",
+          "exampleZh": "这个包很贵。",
+          "variants": [
+            "高い"
+          ]
+        },
+        {
+          "term": "やすい",
+          "reading": "yasui",
+          "meaning": "便宜的",
+          "example": "もっとやすいのはありますか。",
+          "exampleZh": "有更便宜的吗？",
+          "variants": [
+            "安い"
+          ]
+        },
+        {
+          "term": "くつ",
+          "reading": "kutsu",
+          "meaning": "鞋",
+          "example": "くつをみたいです。",
+          "exampleZh": "想看看鞋。",
+          "variants": [
+            "靴"
+          ]
+        },
+        {
+          "term": "かばん",
+          "reading": "kaban",
+          "meaning": "包",
+          "example": "あのくろいかばん。",
+          "exampleZh": "那个黑色的包。"
+        },
+        {
+          "term": "シャツ",
+          "reading": "shatsu",
+          "meaning": "衬衫",
+          "example": "しろいシャツをください。",
+          "exampleZh": "请给我白色衬衫。"
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "これはいくらですか。",
+          "meaning": "这个多少钱？",
+          "example": "これはいくらですか。",
+          "exampleZh": "这个多少钱？"
+        },
+        {
+          "pattern": "～をください。",
+          "meaning": "请给我拿～。",
+          "example": "あのシャツをください。",
+          "exampleZh": "请给我拿那件衬衫。"
+        },
+        {
+          "pattern": "もうすこしやすいのはありますか。",
+          "meaning": "有便宜一点的吗？",
+          "example": "もうすこしやすいのはありますか。",
+          "exampleZh": "有便宜一点的吗？"
+        }
+      ],
+      "dialogueGoal": "在商店用日语询价、讲价并完成购买"
+    },
+    {
+      "id": "ja-n5-u08",
+      "order": 8,
+      "title": "趣味と天気",
+      "words": [
+        {
+          "term": "てんき",
+          "reading": "tenki",
+          "meaning": "天气",
+          "example": "きょうのてんきはどうですか。",
+          "exampleZh": "今天天气怎么样？",
+          "variants": [
+            "天気"
+          ]
+        },
+        {
+          "term": "あめ",
+          "reading": "ame",
+          "meaning": "雨",
+          "example": "あめがふっています。",
+          "exampleZh": "在下雨。",
+          "variants": [
+            "雨"
+          ]
+        },
+        {
+          "term": "ゆき",
+          "reading": "yuki",
+          "meaning": "雪",
+          "example": "ゆきがふりました。",
+          "exampleZh": "下雪了。",
+          "variants": [
+            "雪"
+          ]
+        },
+        {
+          "term": "はれ",
+          "reading": "hare",
+          "meaning": "晴",
+          "example": "きょうははれです。",
+          "exampleZh": "今天是晴天。",
+          "variants": [
+            "晴れ"
+          ]
+        },
+        {
+          "term": "あつい",
+          "reading": "atsui",
+          "meaning": "热的",
+          "example": "きょうはあついですね。",
+          "exampleZh": "今天真热啊。",
+          "variants": [
+            "暑い"
+          ]
+        },
+        {
+          "term": "さむい",
+          "reading": "samui",
+          "meaning": "冷的",
+          "example": "あしたはさむいでしょう。",
+          "exampleZh": "明天大概会冷。",
+          "variants": [
+            "寒い"
+          ]
+        },
+        {
+          "term": "しゅみ",
+          "reading": "shumi",
+          "meaning": "爱好",
+          "example": "しゅみはなんですか。",
+          "exampleZh": "你的爱好是什么？",
+          "variants": [
+            "趣味"
+          ]
+        },
+        {
+          "term": "すきな",
+          "reading": "sukina",
+          "meaning": "喜欢的",
+          "example": "すきなおんがく。",
+          "exampleZh": "喜欢的音乐。",
+          "variants": [
+            "好き"
+          ]
+        },
+        {
+          "term": "おんがく",
+          "reading": "ongaku",
+          "meaning": "音乐",
+          "example": "おんがくをききます。",
+          "exampleZh": "听音乐。",
+          "variants": [
+            "音楽"
+          ]
+        },
+        {
+          "term": "うた",
+          "reading": "uta",
+          "meaning": "歌",
+          "example": "うたをうたいます。",
+          "exampleZh": "唱歌。",
+          "variants": [
+            "歌"
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "pattern": "～がすきです。",
+          "meaning": "喜欢～。",
+          "example": "おんがくがすきです。",
+          "exampleZh": "喜欢音乐。"
+        },
+        {
+          "pattern": "きょうは～です。",
+          "meaning": "今天（天气）～。",
+          "example": "きょうははれです。",
+          "exampleZh": "今天是晴天。"
+        },
+        {
+          "pattern": "しゅみはなんですか。",
+          "meaning": "爱好是什么？",
+          "example": "しゅみはなんですか。",
+          "exampleZh": "爱好是什么？"
+        }
+      ],
+      "dialogueGoal": "与朋友聊爱好和当天的天气"
+    }
+  ]
+}

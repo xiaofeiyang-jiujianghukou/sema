@@ -1,28 +1,21 @@
 import type { JSX } from "react";
 /**
- * 课程主页：当前课程 + 三级学习路径（初级跟读 / 中级情景 / 高级自由语音）+ 闯关进度
- * 登录后默认进入（上次课程），没学过的用户先走引导
+ * 课程主页：当前课程（按考级大纲的第一册）+ 单元课程表 + 闯关进度
+ * 关卡由课程内容派生：每单元 = 词表跟读关 + 对话应用关，进度顺序解锁
  */
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Alert } from "react-native";
 import { ApiError, api, type ChallengeProgress, type PublicUser } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
-const LANGS: Record<"en" | "ja" | "ko", { label: string; flag: string }> = {
-  en: { label: "英语", flag: "🇬🇧" },
-  ja: { label: "日语", flag: "🇯🇵" },
-  ko: { label: "韩语", flag: "🇰🇷" },
+const LANGS: Record<"en" | "ja" | "ko", { label: string; flag: string; course: string }> = {
+  en: { label: "英语", flag: "🇬🇧", course: "CEFR A1" },
+  ja: { label: "日语", flag: "🇯🇵", course: "JLPT N5" },
+  ko: { label: "韩语", flag: "🇰🇷", course: "TOPIK I" },
 };
 
 const LEVEL_LABEL: Record<string, string> = { zero: "零基础", basic: "入门", pro: "进阶" };
-
-const TIERS: Array<{ key: ChallengeProgress["tier"]; label: string; emoji: string; desc: string }> = [
-  { key: "beginner", label: "初级 · 单词句子", emoji: "🌱", desc: "看词开口读，AI 听你读得对不对" },
-  { key: "intermediate", label: "中级 · 情景对话", emoji: "💬", desc: "真实场景完成对话轮数" },
-  { key: "advanced", label: "高级 · 自由语音", emoji: "🚀", desc: "真实语速自由对话（视频通话即将推出）" },
-];
 
 export default function Course(): JSX.Element {
   const router = useRouter();
@@ -62,40 +55,51 @@ export default function Course(): JSX.Element {
   };
 
   const level = user?.levels?.[lang];
+  const nextLesson = challenges?.find((c) => c.state === "open");
+  const doneCount = challenges?.filter((c) => c.state === "completed").length ?? 0;
+
+  let lastGroup = "";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
       {/* 课程切换 */}
       <View style={styles.langRow}>
         {(Object.keys(LANGS) as Array<"en" | "ja" | "ko">).map((l) => (
           <Pressable key={l} style={[styles.langBtn, lang === l && styles.langBtnOn]} onPress={() => void switchCourse(l)}>
             <Text style={styles.langFlag}>{LANGS[l].flag}</Text>
             <Text style={[styles.langLabel, lang === l && styles.langLabelOn]}>{LANGS[l].label}</Text>
+            <Text style={styles.langCourse}>{LANGS[l].course}</Text>
             {user?.levels?.[l] && <Text style={styles.langLevel}>{LEVEL_LABEL[user.levels[l]!]}</Text>}
           </Pressable>
         ))}
       </View>
-      <Text style={styles.hint}>
-        {level
-          ? `当前水平：${LEVEL_LABEL[level] ?? level} · 已为你点亮推荐的闯关路径`
-          : "这门课还没定水平——去「我的」设置，AI 才好拿捏难度"}
-      </Text>
+
+      {/* 课程进度 + 继续学习 */}
+      {challenges && challenges.length > 0 && (
+        <View style={styles.progressCard}>
+          <Text style={styles.progressText}>
+            {LANGS[lang].course} 第一册 · 已过 {doneCount}/{challenges.length} 关
+          </Text>
+          {nextLesson ? (
+            <Pressable style={styles.continueBtn} onPress={() => router.push({ pathname: "/challenge/[id]", params: { id: nextLesson.id } })}>
+              <Text style={styles.continueText}>继续学习：{nextLesson.title}</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.progressText}>🎉 第一册全部通关！第二册筹备中</Text>
+          )}
+        </View>
+      )}
 
       {loading && <ActivityIndicator color="#8fd3ff" style={{ marginTop: 24 }} />}
 
       {challenges?.map((c) => {
-        const tier = TIERS.find((t) => t.key === c.tier)!;
-        const isRecommended =
-          (level === "zero" && c.tier === "beginner") ||
-          (level === "basic" && c.tier === "intermediate") ||
-          (level === "pro" && c.tier === "advanced");
-        const showHeader = c.order === 1;
+        const showHeader = c.group !== lastGroup;
+        lastGroup = c.group;
         return (
           <View key={c.id}>
             {showHeader && (
-              <View style={[styles.tierHeader, isRecommended && styles.tierHeaderOn]}>
-                <Text style={styles.tierTitle}>{tier.emoji} {tier.label}{isRecommended ? " · 推荐路径" : ""}</Text>
-                <Text style={styles.tierDesc}>{tier.desc}</Text>
+              <View style={styles.unitHeader}>
+                <Text style={styles.unitTitle}>{c.group}</Text>
               </View>
             )}
             <Pressable
@@ -117,8 +121,11 @@ export default function Course(): JSX.Element {
       })}
 
       <Pressable style={styles.browseBtn} onPress={() => router.push("/scenarios")}>
-        <Text style={styles.browseText}>浏览全部情景（自由练习）→</Text>
+        <Text style={styles.browseText}>自由练习（全部情景）→</Text>
       </Pressable>
+      <Text style={styles.footnote}>
+        {level ? `你的水平：${LEVEL_LABEL[level] ?? level}——课程按大纲顺序推进，AI 辅助强度跟随水平` : "这门课还没定水平——去「我的」设置，AI 才好拿捏难度"}
+      </Text>
     </ScrollView>
   );
 }
@@ -131,12 +138,14 @@ const styles = StyleSheet.create({
   langFlag: { fontSize: 22 },
   langLabel: { color: "#9fb8c9", fontSize: 13 },
   langLabelOn: { color: "#f2f7fa", fontWeight: "700" },
+  langCourse: { color: "#5f7d92", fontSize: 10 },
   langLevel: { color: "#7ee2a8", fontSize: 10 },
-  hint: { color: "#7a92a8", fontSize: 12, lineHeight: 17 },
-  tierHeader: { marginTop: 8, marginBottom: 8, paddingBottom: 6, borderBottomWidth: 1, borderColor: "#1f3d55" },
-  tierHeaderOn: { borderColor: "#1a73e8" },
-  tierTitle: { color: "#f2f7fa", fontSize: 15, fontWeight: "700" },
-  tierDesc: { color: "#7a92a8", fontSize: 11, marginTop: 2 },
+  progressCard: { backgroundColor: "#12314c", borderRadius: 12, padding: 14, gap: 10 },
+  progressText: { color: "#9fb8c9", fontSize: 13 },
+  continueBtn: { backgroundColor: "#1a73e8", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  continueText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  unitHeader: { marginTop: 8, paddingBottom: 6, borderBottomWidth: 1, borderColor: "#1f3d55" },
+  unitTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "700" },
   card: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#12314c", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "transparent" },
   cardDone: { borderColor: "#2a6e4a", backgroundColor: "#0f2b22" },
   cardLocked: { opacity: 0.5 },
@@ -147,4 +156,5 @@ const styles = StyleSheet.create({
   reward: { color: "#7ee2a8", fontSize: 13, fontWeight: "700" },
   browseBtn: { alignItems: "center", paddingVertical: 12 },
   browseText: { color: "#4da3ff", fontSize: 13 },
+  footnote: { color: "#5f7d92", fontSize: 11, lineHeight: 16, textAlign: "center" },
 });

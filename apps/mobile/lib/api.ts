@@ -42,6 +42,8 @@ export interface ChallengeProgress {
   id: string;
   tier: "beginner" | "intermediate" | "advanced";
   order: number;
+  /** 所属单元（课程分组标题） */
+  group: string;
   title: string;
   description: string;
   rewardCents: number;
