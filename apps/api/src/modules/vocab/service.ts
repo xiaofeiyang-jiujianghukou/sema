@@ -119,6 +119,11 @@ export class VocabBookService {
     return this.deps.now();
   }
 
+  /** 查词路由用：按词查卡（公开只读透传） */
+  async findByTerm(userId: string, term: string): Promise<VocabCard | null> {
+    return this.repo.findByTerm(userId, term.trim());
+  }
+
   async add(input: {
     userId: string;
     term: string;

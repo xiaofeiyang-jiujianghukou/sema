@@ -7,6 +7,7 @@
  * POST /v1/vocab/:cardId/lecture     —— AI 精讲（每词一次，10厘/词，缓存终身）
  */
 import type { FastifyPluginAsync } from "fastify";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireAuth } from "./auth.js";
 
@@ -25,6 +26,47 @@ export const vocabRoutes: FastifyPluginAsync = async (app) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const cards = await app.vocabBook.due(req.userId);
     return { cards, count: cards.length };
+  });
+
+  // 生词即点即译：查过的词直接从生词本返回（免费）；新词走 LLM（vocab_lookup 1 厘/次）
+  app.post("/vocab/lookup", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const body = z.object({
+      word: z.string().min(1).max(60),
+      context: z.string().max(300).optional(),
+      lang: z.enum(["en", "ja", "ko"]).optional(),
+    }).parse(req.body);
+    const term = body.word.trim();
+    const lang = body.lang ?? "en";
+
+    const existing = await app.vocabBook.findByTerm(req.userId, term);
+    const walletBefore = await app.wallets.getWallet(req.userId);
+    if (existing) {
+      return reply.send({
+        word: term,
+        translation: existing.translation,
+        pos: null,
+        note: "已在生词本",
+        fromBook: true,
+        chargedCents: 0,
+        balanceCredits: walletBefore.balanceCredits,
+      });
+    }
+
+    try {
+      await app.wallets.charge(req.userId, "vocab_lookup", 1, {
+        idempotencyKey: `lookup:${randomUUID()}`,
+      });
+    } catch (err) {
+      if (err instanceof Error && "code" in err && (err as { code?: string }).code === "INSUFFICIENT_FUNDS") {
+        return reply.code(409).send({ error: { code: "INSUFFICIENT_FUNDS", message: "余额不足，无法查询生词" } });
+      }
+      throw err;
+    }
+
+    const lookup = await app.wordLookup(term, body.context, lang);
+    const wallet = await app.wallets.getWallet(req.userId);
+    return reply.send({ ...lookup, fromBook: false, chargedCents: 1, balanceCredits: wallet.balanceCredits });
   });
 
   app.post("/vocab", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {

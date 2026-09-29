@@ -25,6 +25,34 @@ const VOICE_STATE_TEXT: Record<VoiceState, string> = {
   speaking: "播报中",
 };
 
+type LookupResult = {
+  word: string;
+  translation: string;
+  pos: string | null;
+  note: string | null;
+  fromBook: boolean;
+  chargedCents: number;
+  balanceCredits: string;
+};
+
+/** 助教气泡：单词可点（英/日/韩字母簇），点按即查 */
+function TappableText({ text, onWord }: { text: string; onWord: (word: string) => void }) {
+  const parts = text.split(/([A-Za-zÀ-ɏ가-힣ぁ-んァ-ヶ一-龥]+)/);
+  return (
+    <Text style={styles.bubbleText}>
+      {parts.map((part, i) =>
+        /^[A-Za-zÀ-ɏ가-힣ぁ-んァ-ヶ一-龥]+$/.test(part) ? (
+          <Text key={i} style={styles.word} onPress={() => onWord(part)}>
+            {part}
+          </Text>
+        ) : (
+          <Text key={i}>{part}</Text>
+        ),
+      )}
+    </Text>
+  );
+}
+
 export default function Chat(): JSX.Element {
   const router = useRouter();
   const { id, opener, scenarioId } = useLocalSearchParams<{ id: string; opener?: string; scenarioId?: string }>();
@@ -36,8 +64,32 @@ export default function Chat(): JSX.Element {
   const [sessionTotal, setSessionTotal] = useState(0);
   const [voiceOn, setVoiceOn] = useState(false);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<{ msgIndex: number; word: string; loading: boolean; result?: LookupResult; saved?: boolean } | null>(null);
   const [pressing, setPressing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
+
+  const handleWordLookup = async (msgIndex: number, word: string, context: string): Promise<void> => {
+    if (!token || lookup?.loading) return;
+    setLookup({ msgIndex, word, loading: true });
+    try {
+      const result = (await api.vocabLookup(token, word, context.slice(0, 300), "en")) as LookupResult;
+      setLookup({ msgIndex, word, loading: false, result });
+    } catch (err) {
+      setLookup(null);
+      Alert.alert("查词失败", err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleSaveVocab = async (): Promise<void> => {
+    if (!token || !lookup?.result) return;
+    try {
+      await api.vocabAdd(token, lookup.result.word, lookup.result.translation);
+      setLookup({ ...lookup, saved: true });
+      setTimeout(() => setLookup(null), 1500);
+    } catch (err) {
+      Alert.alert("保存失败", err instanceof Error ? err.message : String(err));
+    }
+  };
 
   const voice = useVoiceMode({
     token: token ?? "",
@@ -127,11 +179,45 @@ export default function Chat(): JSX.Element {
         keyExtractor={(_, i) => String(i)}
         contentContainerStyle={{ padding: 14, gap: 10 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View style={[styles.bubble, item.role === "user" ? styles.user : styles.assistant]}>
-            <Text style={styles.bubbleText}>{item.text}</Text>
-            {item.role === "assistant" && item.chargedCents !== undefined && (
-              <Text style={styles.chargeNote}>本轮 {item.chargedCents} 厘 · 余额 {item.balanceCredits} 积分</Text>
+            {item.role === "assistant" ? (
+              <>
+                <TappableText text={item.text} onWord={(word) => void handleWordLookup(index, word, item.text)} />
+                {lookup?.msgIndex === index && (
+                  <View style={styles.lookupCard}>
+                    {lookup.loading ? (
+                      <Text style={styles.lookupText}>查询中…</Text>
+                    ) : lookup.result ? (
+                      <>
+                        <Text style={styles.lookupWord}>
+                          {lookup.result.word}
+                          {lookup.result.pos ? `  ${lookup.result.pos}` : ""}
+                        </Text>
+                        <Text style={styles.lookupTranslation}>{lookup.result.translation}</Text>
+                        {lookup.result.note ? <Text style={styles.lookupNote}>{lookup.result.note}</Text> : null}
+                        <Text style={styles.lookupMeta}>
+                          {lookup.saved
+                            ? "已存入生词本 ✓"
+                            : lookup.result.fromBook
+                              ? "已在生词本 · 免费"
+                              : `查询 ${lookup.result.chargedCents} 厘 · 余额 ${lookup.result.balanceCredits} 积分`}
+                        </Text>
+                        {!lookup.saved && (
+                          <Pressable style={styles.saveBtn} onPress={() => void handleSaveVocab()}>
+                            <Text style={styles.saveBtnText}>存入生词本</Text>
+                          </Pressable>
+                        )}
+                      </>
+                    ) : null}
+                  </View>
+                )}
+                {item.chargedCents !== undefined && (
+                  <Text style={styles.chargeNote}>本轮 {item.chargedCents} 厘 · 余额 {item.balanceCredits} 积分</Text>
+                )}
+              </>
+            ) : (
+              <Text style={styles.bubbleText}>{item.text}</Text>
             )}
           </View>
         )}
@@ -196,6 +282,15 @@ const styles = StyleSheet.create({
   assistant: { alignSelf: "flex-start", backgroundColor: "#12314c" },
   bubbleText: { color: "#f2f7fa", fontSize: 16, lineHeight: 23 },
   chargeNote: { color: "#5f7d92", fontSize: 10, marginTop: 6 },
+  word: { color: "#1a73e8", textDecorationLine: "underline" },
+  lookupCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: "#eef4fa" },
+  lookupText: { fontSize: 12, color: "#5f7d92" },
+  lookupWord: { fontSize: 14, fontWeight: "700", color: "#123" },
+  lookupTranslation: { fontSize: 14, color: "#123", marginTop: 2 },
+  lookupNote: { fontSize: 11, color: "#5f7d92", marginTop: 4 },
+  lookupMeta: { fontSize: 10, color: "#5f7d92", marginTop: 4 },
+  saveBtn: { marginTop: 6, alignSelf: "flex-start", backgroundColor: "#1a73e8", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  saveBtnText: { color: "#fff", fontSize: 12 },
   voiceBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingTop: 8 },
   voiceToggle: { backgroundColor: "#12314c", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   voiceOn: { backgroundColor: "#1a73e8" },

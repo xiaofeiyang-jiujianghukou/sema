@@ -16,7 +16,8 @@ import {
 } from "@sema/ai-core";
 import { ConversationService } from "./modules/conversation/service.js";
 import { MemoryConversationRepo } from "./modules/conversation/repo.js";
-import { ASR_LANGUAGE } from "./content/scenarios.js";
+import { ASR_LANGUAGE, type TargetLang } from "./content/scenarios.js";
+import { lookupWord } from "./modules/vocab/lookup.js";
 import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
@@ -44,6 +45,13 @@ declare module "fastify" {
     reviews: ReviewService;
     vocabBook: VocabBookService;
     lectures: LectureService;
+    /** 生词即点即译（结合语境的 LLM 翻译） */
+    wordLookup: (word: string, context: string | undefined, lang: "en" | "ja" | "ko") => Promise<{
+      word: string;
+      translation: string;
+      pos: string | null;
+      note: string | null;
+    }>;
     stats: StatsService;
     auth: AuthService;
     speech: { asr: ASRProvider; tts: TTSProvider };
@@ -122,6 +130,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   // 仓储装配：生产（DATABASE_URL）→ Postgres 全套；开发/测试 → 内存实现
   const dbPool = options.databaseUrl ? new Pool({ connectionString: options.databaseUrl }) : null;
+  const llmRouter = options.router ?? defaultRouter();
   const conversationRepo = dbPool ? new PgConversationRepo(dbPool) : new MemoryConversationRepo();
   const reviewRepo = dbPool ? new PgReviewRepo(dbPool) : new MemoryReviewRepo();
   const vocabRepo = dbPool ? new PgVocabRepo(dbPool) : new MemoryVocabRepo();
@@ -135,7 +144,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     new ConversationService(
       conversationRepo,
       app.wallets,
-      options.router ?? defaultRouter(),
+      llmRouter,
       clock,
     ),
   );
@@ -159,11 +168,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   const vocabBook = new VocabBookService(vocabRepo, { now: clock });
-  app.decorate("lectures", new LectureService({ repo: vocabRepo, wallets: app.wallets, router: options.router ?? defaultRouter() }));
+  app.decorate("lectures", new LectureService({ repo: vocabRepo, wallets: app.wallets, router: llmRouter }));
+  app.decorate("wordLookup", (word: string, context: string | undefined, lang: TargetLang) => lookupWord(llmRouter, word, context, lang));
   app.decorate("reviews", new ReviewService(reviewRepo, {
     conversations: conversationRepo,
     wallets: app.wallets,
-    router: options.router ?? defaultRouter(),
+    router: llmRouter,
     now: clock,
   }));
   app.decorate("vocabBook", vocabBook);

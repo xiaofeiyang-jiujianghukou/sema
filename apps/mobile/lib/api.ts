@@ -28,6 +28,16 @@ export interface ScenarioSummary {
   setting: string;
 }
 
+export interface WordLookup {
+  word: string;
+  translation: string;
+  pos: string | null;
+  note: string | null;
+  fromBook: boolean;
+  chargedCents: number;
+  balanceCredits: string;
+}
+
 export interface StartResult {
   sessionId: string;
   scenario: ScenarioSummary & { goals: string[] };
@@ -175,6 +185,12 @@ export const api = {
     request<{ cards: VocabCard[]; count: number }>("/v1/vocab", { token }),
   vocabDue: (token: string) =>
     request<{ cards: VocabCard[]; count: number }>("/v1/vocab/due", { token }),
+  vocabLookup: (token: string, word: string, context?: string, lang: "en" | "ja" | "ko" = "en") =>
+    request<WordLookup>("/v1/vocab/lookup", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ word, ...(context ? { context } : {}), lang }),
+    }),
   vocabAdd: (token: string, term: string, translation: string, context?: string) =>
     request<{ card: VocabCard; created: boolean }>("/v1/vocab", {
       method: "POST",

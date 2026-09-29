@@ -13,6 +13,7 @@ export type PricingUnit = "second" | "count" | "word" | "pack";
 export type ActionType =
   | "ai_conversation"
   | "ai_text_turn"
+  | "vocab_lookup"
   | "review_report"
   | "vocab_lecture"
   | "scenario_pack";
@@ -40,6 +41,13 @@ export const PRICING: Readonly<Record<ActionType, PriceDef>> = {
     centsPerUnit: 10, // 10 厘/轮 = 0.1 积分/轮
     displayName: "AI 文字对话",
     description: "文字轮次按轮计费（10 厘/轮）；闲置不计费",
+  },
+  vocab_lookup: {
+    code: "vocab_lookup",
+    unit: "count",
+    centsPerUnit: 1, // 1 厘/次 = 0.01 积分
+    displayName: "生词查询",
+    description: "结合对话语境的即点即译（LLM 调用）；已在生词本中的词免费",
   },
   review_report: {
     code: "review_report",
