@@ -85,10 +85,11 @@ export function useVoiceMode(opts: {
   }, []);
 
   const playPcm = useCallback(async (): Promise<void> => {
-    const token = playTokenRef.current; // 本轮播放的代际
     const pcm = pcmRef.current;
     pcmRef.current = [];
     if (pcm.length === 0) return;
+    await stopPlayback(); // 先停掉旧声音并作废其在途播放链，保证任意时刻只有一路音频
+    const token = playTokenRef.current; // 本轮播放的代际（stopPlayback 已自增）
     const total = pcm.reduce((n, c) => n + c.length, 0);
     const merged = new Uint8Array(total);
     let offset = 0;

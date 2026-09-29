@@ -127,21 +127,36 @@ export class RealtimeVoiceSession {
   }
 
   /**
-   * 强制收段：按住说话「松手 = 说完」，不等 hangover 静音判定。
-   * 无待发内容（纯静音/太短）时给出明确提示，客户端不再悬在「思考」态。
+   * 按住说话整段上行：一次按压 = 一个发言，最多一个回复。
+   * 不走 hangover 断句（句中停顿会被误切，导致一次按压出多个回复）。
+   * 整段无语音（纯静音/太短）时明确提示，客户端不悬在「思考」态。
    */
-  flush(): void {
-    if (this.inSegment || this.speechFrames > 0) {
-      const segment = Buffer.from(this.ringBuffer);
-      this.ringBuffer = Buffer.alloc(0);
-      this.inSegment = false;
-      this.speechFrames = 0;
-      this.silenceFrames = 0;
-      if (segment.length > 0) void this.handleSegment(segment);
+  pushUtterance(pcm: Buffer): void {
+    if (this.closed || pcm.length === 0) return;
+    // 用户主动开口 = 打断：掐断上一轮仍在生成的播报
+    if (this.speaking && this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+      this.speaking = false;
+      this.callbacks.onReplyEnd?.();
+    }
+    // 丢弃可能悬着的半截段（异常态自愈）
+    this.ringBuffer = Buffer.alloc(0);
+    this.inSegment = false;
+    this.speechFrames = 0;
+    this.silenceFrames = 0;
+
+    // 含语音才送识别：20ms 帧、能量越阈计数，门槛与流式 VAD 一致
+    let speechFrames = 0;
+    const frameBytes = 640;
+    for (let off = 0; off + frameBytes <= pcm.length; off += frameBytes) {
+      if (this.rms(pcm.subarray(off, off + frameBytes)) >= this.vad.rmsThreshold) speechFrames += 1;
+    }
+    if (speechFrames < this.vad.minSpeechFrames) {
+      this.callbacks.onError?.("没听清，请靠近麦克风再说一次");
       return;
     }
-    // 没有检测到任何语音：提示用户而非静默悬挂
-    this.callbacks.onError?.("没听清，请靠近麦克风再说一次");
+    void this.handleSegment(pcm);
   }
 
   /** WS 关闭时调用：放弃进行中的工作 */

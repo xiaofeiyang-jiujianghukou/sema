@@ -80,9 +80,8 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
             console.log(`[realtime] audio-aac 收到 ${Math.round(aacCheck.data.data.length / 1024)}KB base64，开始转码`);
             const pcm = await aacToPcm(Buffer.from(aacCheck.data.data, "base64"));
             console.log(`[realtime] 转码完成 ${(pcm.length / 2 / 16000).toFixed(2)}s PCM，送 VAD`);
-            // 按住说话：松手即说完，直接强制收段（不依赖静音 hangover）
-            session?.pushAudio(pcm);
-            session?.flush();
+            // 按住说话：一次按压 = 一个发言（整段送识别，不被静音判定切碎）
+            session?.pushUtterance(pcm);
           } catch (err) {
             send({ type: "error", message: `音频转码失败: ${err instanceof Error ? err.message : String(err)}` });
           }
