@@ -38,6 +38,12 @@ export interface WordLookup {
   balanceCredits: string;
 }
 
+export interface MessageTranslation {
+  translation: string;
+  chargedCents: number;
+  balanceCredits: string;
+}
+
 export interface StartResult {
   sessionId: string;
   scenario: ScenarioSummary & { goals: string[] };
@@ -185,6 +191,12 @@ export const api = {
     request<{ cards: VocabCard[]; count: number }>("/v1/vocab", { token }),
   vocabDue: (token: string) =>
     request<{ cards: VocabCard[]; count: number }>("/v1/vocab/due", { token }),
+  translateMessage: (token: string, text: string, lang: "en" | "ja" | "ko" = "en") =>
+    request<MessageTranslation>("/v1/translate", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ text, lang }),
+    }),
   vocabLookup: (token: string, word: string, context?: string, lang: "en" | "ja" | "ko" = "en") =>
     request<WordLookup>("/v1/vocab/lookup", {
       method: "POST",

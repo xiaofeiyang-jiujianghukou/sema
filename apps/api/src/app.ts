@@ -17,7 +17,7 @@ import {
 import { ConversationService } from "./modules/conversation/service.js";
 import { MemoryConversationRepo } from "./modules/conversation/repo.js";
 import { ASR_LANGUAGE, type TargetLang } from "./content/scenarios.js";
-import { lookupWord } from "./modules/vocab/lookup.js";
+import { lookupWord, translateMessage } from "./modules/vocab/lookup.js";
 import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
@@ -52,6 +52,8 @@ declare module "fastify" {
       pos: string | null;
       note: string | null;
     }>;
+    /** 整句翻译（长按 AI 消息） */
+    messageTranslate: (text: string, lang: "en" | "ja" | "ko") => Promise<{ translation: string }>;
     stats: StatsService;
     auth: AuthService;
     speech: { asr: ASRProvider; tts: TTSProvider };
@@ -170,6 +172,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const vocabBook = new VocabBookService(vocabRepo, { now: clock });
   app.decorate("lectures", new LectureService({ repo: vocabRepo, wallets: app.wallets, router: llmRouter }));
   app.decorate("wordLookup", (word: string, context: string | undefined, lang: TargetLang) => lookupWord(llmRouter, word, context, lang));
+  app.decorate("messageTranslate", (text: string, lang: TargetLang) => translateMessage(llmRouter, text, lang));
   app.decorate("reviews", new ReviewService(reviewRepo, {
     conversations: conversationRepo,
     wallets: app.wallets,

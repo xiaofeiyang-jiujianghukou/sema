@@ -57,3 +57,26 @@ export async function lookupWord(
   }
   return { word, translation: raw.trim().slice(0, 200) || "（查询失败，请重试）", pos: null, note: null };
 }
+
+/** 整句翻译：AI 消息翻成中文（结合语境，保留语气） */
+export async function translateMessage(
+  router: TaskRouter,
+  text: string,
+  lang: TargetLang,
+): Promise<{ translation: string }> {
+  const decision = router.route("dialogue");
+  const result = decision.provider.chat({
+    messages: [
+      {
+        role: "system",
+        content: `你是${LANG_NAME[lang]}→中文的翻译。把用户给的句子翻成自然中文，保留语气。只输出译文，不要任何解释。`,
+      },
+      { role: "user", content: text },
+    ],
+    temperature: 0.2,
+    maxTokens: 300,
+  });
+  let raw = "";
+  for await (const chunk of result.chunks) raw += chunk;
+  return { translation: raw.trim().slice(0, 500) || "（翻译失败，请重试）" };
+}

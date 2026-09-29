@@ -65,6 +65,7 @@ export default function Chat(): JSX.Element {
   const [voiceOn, setVoiceOn] = useState(false);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [lookup, setLookup] = useState<{ msgIndex: number; word: string; loading: boolean; result?: LookupResult; saved?: boolean } | null>(null);
+  const [translations, setTranslations] = useState<Record<number, { loading: boolean; text?: string; charged?: number; balance?: string }>>({});
   const [pressing, setPressing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
@@ -77,6 +78,23 @@ export default function Chat(): JSX.Element {
     } catch (err) {
       setLookup(null);
       Alert.alert("查词失败", err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleTranslate = async (msgIndex: number, text: string): Promise<void> => {
+    if (!token) return;
+    if (translations[msgIndex]) {
+      // 再按一次收起
+      setTranslations((t) => { const n = { ...t }; delete n[msgIndex]; return n; });
+      return;
+    }
+    setTranslations((t) => ({ ...t, [msgIndex]: { loading: true } }));
+    try {
+      const result = await api.translateMessage(token, text.slice(0, 500), "en");
+      setTranslations((t) => ({ ...t, [msgIndex]: { loading: false, text: result.translation, charged: result.chargedCents, balance: result.balanceCredits } }));
+    } catch (err) {
+      setTranslations((t) => { const n = { ...t }; delete n[msgIndex]; return n; });
+      Alert.alert("翻译失败", err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -180,7 +198,10 @@ export default function Chat(): JSX.Element {
         contentContainerStyle={{ padding: 14, gap: 10 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item, index }) => (
-          <View style={[styles.bubble, item.role === "user" ? styles.user : styles.assistant]}>
+          <Pressable
+            style={[styles.bubble, item.role === "user" ? styles.user : styles.assistant]}
+            onLongPress={item.role === "assistant" ? () => void handleTranslate(index, item.text) : undefined}
+          >
             {item.role === "assistant" ? (
               <>
                 <TappableText text={item.text} onWord={(word) => void handleWordLookup(index, word, item.text)} />
@@ -212,6 +233,18 @@ export default function Chat(): JSX.Element {
                     ) : null}
                   </View>
                 )}
+                {translations[index] && (
+                  <View style={styles.lookupCard}>
+                    {translations[index].loading ? (
+                      <Text style={styles.lookupText}>翻译中…</Text>
+                    ) : (
+                      <>
+                        <Text style={styles.lookupTranslation}>{translations[index].text}</Text>
+                        <Text style={styles.lookupMeta}>翻译 {translations[index].charged} 厘 · 余额 {translations[index].balance} 积分 · 再按一次收起</Text>
+                      </>
+                    )}
+                  </View>
+                )}
                 {item.chargedCents !== undefined && (
                   <Text style={styles.chargeNote}>本轮 {item.chargedCents} 厘 · 余额 {item.balanceCredits} 积分</Text>
                 )}
@@ -219,7 +252,7 @@ export default function Chat(): JSX.Element {
             ) : (
               <Text style={styles.bubbleText}>{item.text}</Text>
             )}
-          </View>
+          </Pressable>
         )}
       />
 

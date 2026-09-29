@@ -14,6 +14,7 @@ export type ActionType =
   | "ai_conversation"
   | "ai_text_turn"
   | "vocab_lookup"
+  | "text_translate"
   | "review_report"
   | "vocab_lecture"
   | "scenario_pack";
@@ -48,6 +49,13 @@ export const PRICING: Readonly<Record<ActionType, PriceDef>> = {
     centsPerUnit: 1, // 1 厘/次 = 0.01 积分
     displayName: "生词查询",
     description: "结合对话语境的即点即译（LLM 调用）；已在生词本中的词免费",
+  },
+  text_translate: {
+    code: "text_translate",
+    unit: "count",
+    centsPerUnit: 2, // 2 厘/次 = 0.02 积分
+    displayName: "整句翻译",
+    description: "长按 AI 消息整句翻成中文（结合对话语境）",
   },
   review_report: {
     code: "review_report",

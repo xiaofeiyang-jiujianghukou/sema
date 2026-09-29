@@ -69,6 +69,28 @@ export const vocabRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ ...lookup, fromBook: false, chargedCents: 1, balanceCredits: wallet.balanceCredits });
   });
 
+  // 整句翻译（长按 AI 消息）：text_translate 2 厘/次
+  app.post("/translate", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const body = z.object({
+      text: z.string().min(1).max(500),
+      lang: z.enum(["en", "ja", "ko"]).optional(),
+    }).parse(req.body);
+    try {
+      await app.wallets.charge(req.userId, "text_translate", 1, {
+        idempotencyKey: `translate:${randomUUID()}`,
+      });
+    } catch (err) {
+      if (err instanceof Error && "code" in err && (err as { code?: string }).code === "INSUFFICIENT_FUNDS") {
+        return reply.code(409).send({ error: { code: "INSUFFICIENT_FUNDS", message: "余额不足，无法翻译" } });
+      }
+      throw err;
+    }
+    const { translation } = await app.messageTranslate(body.text, body.lang ?? "en");
+    const wallet = await app.wallets.getWallet(req.userId);
+    return reply.send({ translation, chargedCents: 2, balanceCredits: wallet.balanceCredits });
+  });
+
   app.post("/vocab", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     const body = z.object({
