@@ -295,11 +295,11 @@ export default function ChallengePlay(): JSX.Element {
           {finished.upgraded ? "升星成功！" : finished.stars === 3 ? "满分通关！" : "闯关成功！"}
         </Text>
         {finished.rewardCents > 0 ? (
-          <Text style={styles.partyReward}>+{finished.rewardCents} 厘已入账{finished.upgraded ? "（升星奖=3★奖的一半）" : ""}</Text>
+          <Text style={styles.partyReward}>+{finished.rewardCents} 厘已入账{finished.upgraded ? "（升星奖=新星级奖的一半）" : ""}</Text>
         ) : (
           <Text style={styles.partyReward}>星级未提升，本次无奖励</Text>
         )}
-        <Text style={styles.partyBalance}>余额 {finished.balance} 积分 · 重玩升星有奖（=3★奖的一半）</Text>
+        <Text style={styles.partyBalance}>余额 {finished.balance} 积分 · 平星不发，升星发新星级奖的一半</Text>
         <Pressable style={styles.bigBtn} onPress={() => {
           void (async () => {
             try {

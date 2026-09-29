@@ -42,8 +42,9 @@ export interface ChallengeRepo {
   /**
    * 记录一次通关：
    * - 首通 → 插入（stars, paid=首通应发）→ first=true，payout=firstPayout
-   * - 升星（任意档位跳升）→ 星级取最高，奖金 = 3★全额奖（baseReward）的一半 → upgraded=true
-   * - 无升星 → 只记账不发奖
+   * - 升星（任意档位跳升）→ 星级取最高，奖金 = 新星等级价值的一半
+   *   （每颗星值基础奖的 1/3：→2★ 发 2/3·base 的一半，→3★ 发 base 的一半）
+   * - 平星/降星 → 不发奖
    */
   recordClaim(userId: string, challengeId: string, stars: number, firstPayout: number, baseReward: number): Promise<ClaimOutcome>;
 }
@@ -75,8 +76,9 @@ export class MemoryChallengeRepo implements ChallengeRepo {
     const best = Math.max(prevStars, stars);
     starsMap.set(challengeId, best);
     if (stars > prevStars) {
-      // 升星奖：无论从几星升到几星，一律 = 3★ 全额奖的一半
-      const payout = Math.max(1, Math.floor(baseReward / 2));
+      // 升星奖 = 新星等级价值的一半（每星值 base/3）：→2★ 发 2/3·base 的一半；→3★ 发 base 的一半
+      const newStarValue = Math.round((baseReward * stars) / 3);
+      const payout = Math.max(1, Math.floor(newStarValue / 2));
       paid.set(challengeId, payout);
       return { first: false, upgraded: true, payout, stars: best };
     }
@@ -105,8 +107,9 @@ export class DrizzleChallengeRepo implements ChallengeRepo {
       const prevStars = Number((existing.rows[0] as { stars: number }).stars ?? 0);
       if (stars > prevStars) {
         const best = Math.max(prevStars, stars);
-        // 升星奖：无论从几星升到几星，一律 = 3★ 全额奖的一半
-        const payout = Math.max(1, Math.floor(baseReward / 2));
+        // 升星奖 = 新星等级价值的一半（每星值 base/3）
+        const newStarValue = Math.round((baseReward * stars) / 3);
+        const payout = Math.max(1, Math.floor(newStarValue / 2));
         await this.pool.query(
           "UPDATE user_challenges SET stars = $3, paid_cents = $4 WHERE user_id = $1 AND challenge_id = $2",
           [userId, challengeId, best, payout],
