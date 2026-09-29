@@ -62,10 +62,15 @@ export default function ChallengePlay(): JSX.Element {
   // 首次正确率：index → 是否首试即对（undefined 视作 true，错了置 false）
   const firstTryRef = useRef<Record<number, boolean>>({});
   // 连线状态
-  const [matchSel, setMatchSel] = useState<number | null>(null);
+  const [matchSel, setMatchSel] = useState<null | { side: "L" | "R"; idx: number }>(null);
   const [matchLocked, setMatchLocked] = useState<Record<number, number>>({});
-  const [shakeL, setShakeL] = useState(0);
-  const [shakeR, setShakeR] = useState(0);
+  /** 已配对的颜色（左序号 → 色）：按选择顺序依次取色板 */
+  const [pairColor, setPairColor] = useState<Record<number, string>>({});
+  /** 当前选择周期的颜色 */
+  const [selColor, setSelColor] = useState(PAIR_COLORS[0]!);
+  const selCycleRef = useRef(0);
+  /** 最近一次配错的两项（定点电击抖动） */
+  const [wrong, setWrong] = useState<null | { l: number; r: number; tick: number }>(null);
   // 造句状态
   const [buildOrder, setBuildOrder] = useState<number[]>([]);
 
@@ -110,6 +115,10 @@ export default function ChallengePlay(): JSX.Element {
     setBuildOrder([]);
     setMatchLocked({});
     setMatchSel(null);
+    setPairColor({});
+    setWrong(null);
+    selCycleRef.current = 0;
+    setSelColor(PAIR_COLORS[0]!);
   }, []);
 
   const markWrong = useCallback((): void => {
@@ -305,31 +314,30 @@ export default function ChallengePlay(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercises, exIdx]);
 
-  // ══ 连线 ══
-  const tapLeft = useCallback((li: number): void => {
-    if (matchLocked[li] !== undefined) return;
-    setMatchSel((cur) => (cur === li ? null : li));
-  }, [matchLocked]);
+  // ══ 连线：左右谁先选都行；颜色按选择顺序依次变化，配对成功两边同色 ═══
+  const startSelColor = useCallback((): void => {
+    selCycleRef.current += 1;
+    setSelColor(PAIR_COLORS[selCycleRef.current % PAIR_COLORS.length]!);
+  }, []);
 
-  const tapRight = useCallback(async (ri: number): Promise<void> => {
-    if (!token || !id || matchSel === null || busy) return;
-    if (Object.values(matchLocked).includes(ri)) return;
+  const judgePair = useCallback(async (li: number, ri: number): Promise<void> => {
+    if (!token || !id || busy) return;
     setBusy(true);
     try {
-      const res = await api.challengeCheckPair(token, id, exIdx, matchSel, ri, seed);
+      const res = await api.challengeCheckPair(token, id, exIdx, li, ri, seed);
       if (res.ok) {
-        const locked = { ...matchLocked, [matchSel]: ri };
+        const locked = { ...matchLocked, [li]: ri };
         setMatchLocked(locked);
+        setPairColor((c) => ({ ...c, [li]: selColor }));
         setMatchSel(null);
         const ex = exercises?.[exIdx];
         if (ex && ex.type === "match" && Object.keys(locked).length === ex.left.length) {
           if (firstTryRef.current[exIdx] === undefined) firstTryRef.current[exIdx] = true;
-          await submit(ex.left.map((_, li) => locked[li] ?? -1));
+          await submit(ex.left.map((_, k) => locked[k] ?? -1));
         }
       } else {
         markWrong();
-        setShakeL((n) => n + 1);
-        setShakeR((n) => n + 1);
+        setWrong((w) => ({ l: li, r: ri, tick: (w?.tick ?? 0) + 1 }));
         setMatchSel(null);
       }
     } catch (err) {
@@ -337,7 +345,31 @@ export default function ChallengePlay(): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [token, id, matchSel, busy, matchLocked, exercises, exIdx, seed, markWrong, submit]);
+  }, [token, id, busy, matchLocked, selColor, exercises, exIdx, seed, markWrong, submit]);
+
+  const tapLeft = useCallback((li: number): void => {
+    if (matchLocked[li] !== undefined) return;
+    if (matchSel === null) {
+      startSelColor();
+      setMatchSel({ side: "L", idx: li });
+    } else if (matchSel.side === "L") {
+      setMatchSel({ side: "L", idx: li }); // 同侧换选，颜色不变
+    } else {
+      void judgePair(li, matchSel.idx); // 右侧已选 → 配对
+    }
+  }, [matchLocked, matchSel, startSelColor, judgePair]);
+
+  const tapRight = useCallback((ri: number): void => {
+    if (Object.values(matchLocked).includes(ri)) return;
+    if (matchSel === null) {
+      startSelColor();
+      setMatchSel({ side: "R", idx: ri });
+    } else if (matchSel.side === "R") {
+      setMatchSel({ side: "R", idx: ri });
+    } else {
+      void judgePair(matchSel.idx, ri); // 左侧已选 → 配对
+    }
+  }, [matchLocked, matchSel, startSelColor, judgePair]);
 
   if (loading || !challenge) {
     return <View style={styles.center}><ActivityIndicator color="#8fd3ff" /></View>;
@@ -407,7 +439,7 @@ export default function ChallengePlay(): JSX.Element {
         <Text style={styles.partyBalance}>达标 {hits}/{threshold}——重开一轮，星级按首次正确率算</Text>
         <Pressable style={styles.bigBtn} onPress={() => {
           firstTryRef.current = {};
-          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setBuildOrder([]); setMatchLocked({}); setMatchSel(null);
+          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setBuildOrder([]); setMatchLocked({}); setMatchSel(null); setPairColor({}); setWrong(null); selCycleRef.current = 0;
           void (async () => {
             if (!token || !id) return;
             const ex2 = await api.challengeExercises(token, id);
@@ -495,23 +527,24 @@ export default function ChallengePlay(): JSX.Element {
         )}
         {ex.type === "match" && (
           <View style={styles.card}>
-            <Text style={styles.label}>连线：先点左边的词，再点右边释义</Text>
+            <Text style={styles.label}>连线：两边任意先选一个，再点它的配对（颜色按选择顺序变化）</Text>
             <View style={styles.matchRow}>
               <View style={styles.matchCol}>
                 {ex.left.map((l, li) => {
                   const locked = matchLocked[li] !== undefined;
-                  const color = PAIR_COLORS[li % PAIR_COLORS.length]!;
+                  const color = pairColor[li];
+                  const selected = matchSel?.side === "L" && matchSel.idx === li;
                   return (
-                    <Shake key={li} trigger={matchSel === null ? shakeL : 0}>
+                    <Shake key={li} trigger={wrong?.l === li ? wrong.tick : 0}>
                       <Pressable
                         style={[
                           styles.matchItem,
-                          matchSel === li && styles.matchItemSel,
-                          locked && { borderColor: color, backgroundColor: `${color}26` },
+                          selected && { borderColor: selColor, borderWidth: 2, backgroundColor: `${selColor}3d` },
+                          color && { borderColor: color, borderWidth: 2, backgroundColor: `${color}26` },
                         ]}
                         onPress={() => tapLeft(li)}
                       >
-                        <Text style={[styles.matchText, matchSel === li && { color: "#ffffff", fontWeight: "800" }]}>{l}</Text>
+                        <Text style={[styles.matchText, selected && { color: "#fff", fontWeight: "800" }, color && { color, fontWeight: "700" }]}>{l}</Text>
                       </Pressable>
                     </Shake>
                   );
@@ -520,14 +553,19 @@ export default function ChallengePlay(): JSX.Element {
               <View style={styles.matchCol}>
                 {ex.right.map((r, ri) => {
                   const lockedBy = Object.entries(matchLocked).find(([, v]) => v === ri);
-                  const color = lockedBy ? PAIR_COLORS[Number(lockedBy[0]) % PAIR_COLORS.length]! : undefined;
+                  const color = lockedBy ? pairColor[Number(lockedBy[0])] : undefined;
+                  const selected = matchSel?.side === "R" && matchSel.idx === ri;
                   return (
-                    <Shake key={ri} trigger={matchSel === null ? shakeR : 0}>
+                    <Shake key={ri} trigger={wrong?.r === ri ? wrong.tick : 0}>
                       <Pressable
-                        style={[styles.matchItem, color && { borderColor: color, backgroundColor: `${color}26` }]}
-                        onPress={() => void tapRight(ri)}
+                        style={[
+                          styles.matchItem,
+                          selected && { borderColor: selColor, borderWidth: 2, backgroundColor: `${selColor}3d` },
+                          color && { borderColor: color, borderWidth: 2, backgroundColor: `${color}26` },
+                        ]}
+                        onPress={() => tapRight(ri)}
                       >
-                        <Text style={[styles.matchText, color && { color, fontWeight: "700" }]}>{r}</Text>
+                        <Text style={[styles.matchText, selected && { color: "#fff", fontWeight: "800" }, color && { color, fontWeight: "700" }]}>{r}</Text>
                       </Pressable>
                     </Shake>
                   );
