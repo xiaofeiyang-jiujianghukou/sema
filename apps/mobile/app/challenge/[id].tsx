@@ -321,15 +321,6 @@ export default function ChallengePlay(): JSX.Element {
             <Text style={styles.prompt}>{ex.prompt}</Text>
           </View>
         )}
-        {ex.type === "listen" && (
-        <View style={styles.optionGrid}>
-          {ex.options.map((o) => (
-            <Pressable key={o} style={styles.optionBtn} disabled={busy || !!feedback} onPress={() => void submit(o)}>
-              <Text style={[styles.optionText, { fontSize: 18, fontWeight: "700" }]}>{o}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
         {ex.type === "build" && (
           <View style={styles.card}>
             <Text style={styles.label}>造句：把句子拼出来</Text>
