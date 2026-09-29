@@ -48,6 +48,12 @@ export default function Scenarios(): JSX.Element {
 
   return (
     <View style={styles.container}>
+      <View style={styles.topbar}>
+        <Text style={styles.topbarTitle}>选个情景开口</Text>
+        <Pressable style={styles.meBtn} onPress={() => router.push("/profile")}>
+          <Text style={styles.meBtnText}>我的</Text>
+        </Pressable>
+      </View>
       <View style={styles.chips}>
         {LANGS.map((l) => (
           <Pressable key={l.key} style={[styles.chip, lang === l.key && styles.chipActive]} onPress={() => setLang(l.key)}>
@@ -89,6 +95,10 @@ function alertError(err: unknown): void {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#081a2c", padding: 16 },
+  topbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  topbarTitle: { color: "#f2f7fa", fontSize: 18, fontWeight: "700" },
+  meBtn: { borderRadius: 10, borderWidth: 1, borderColor: "#2a4a66", paddingHorizontal: 14, paddingVertical: 6, backgroundColor: "#0d2233" },
+  meBtnText: { color: "#9fd1f7", fontSize: 13 },
   chips: { flexDirection: "row", gap: 8, marginBottom: 12 },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, backgroundColor: "#12314c" },
   chipActive: { backgroundColor: "#1a73e8" },
