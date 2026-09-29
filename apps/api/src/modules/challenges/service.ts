@@ -237,6 +237,9 @@ export class ChallengeService {
     const word = c.words[index];
     if (!word) throw new Error("词序号越界");
     const transcript = await this.deps.transcribe(audioBase64, c.lang);
+    if (!transcript.trim()) {
+      return { ok: false, transcript: "(AI 没听到)", why: "声音太小或太快——靠近麦克风，按住说清楚再松开" };
+    }
     const norm = (v: string): string => v.toLowerCase().replace(/\s/g, "");
     const t = norm(transcript);
     const ok = word.accept.some((a) => t.includes(norm(a)));

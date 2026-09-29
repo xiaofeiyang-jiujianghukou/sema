@@ -26,6 +26,7 @@ import { AuthService, MemoryUserRepo, ConsoleSmsSender, levelFor, type AccountDe
 import { ChallengeService, MemoryChallengeRepo, DrizzleChallengeRepo } from "./modules/challenges/service.js";
 import { challengeRoutes } from "./routes/challenges.js";
 import { aacToPcm } from "./modules/realtime/transcode.js";
+import { applyAgc } from "./modules/realtime/agc.js";
 import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
@@ -251,7 +252,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       };
     },
     transcribe: async (audioBase64, lang) => {
-      const pcm = await aacToPcm(Buffer.from(audioBase64, "base64"));
+      const pcm = applyAgc(await aacToPcm(Buffer.from(audioBase64, "base64")));
       const recognizer = (options.speech ?? app.speech).asr.createRecognizer({
         sampleRate: 16_000,
         language: ASR_LANGUAGE[lang],
