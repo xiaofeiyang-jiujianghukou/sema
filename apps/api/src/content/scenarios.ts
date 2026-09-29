@@ -802,7 +802,7 @@ interface LessonUnit {
   title: string;
   dialogueGoal: string;
   words: { term: string }[];
-  patterns: string[];
+  patterns: { pattern: string }[];
 }
 
 const LESSON_PERSONA: Record<TargetLang, { name: string; role: string; personality: string }> = {
@@ -867,7 +867,7 @@ function lessonScenario(lang: TargetLang, u: LessonUnit): Scenario {
     setting: u.dialogueGoal,
     opener: LESSON_OPENERS[lang]?.[u.order - 1] ?? LESSON_OPENERS[lang]![0]!,
     goals: [u.dialogueGoal, "用上本课至少 3 个词汇或句型", "自然完成整段对话，不中途冷场"],
-    targetVocab: [...u.words.map((w) => w.term), ...u.patterns].slice(0, 13),
+    targetVocab: [...u.words.map((w) => w.term), ...u.patterns.map((p) => p.pattern)].slice(0, 13),
     systemPrompt: rules(lang, personaBlock, calibration),
     lessonOnly: true,
   };

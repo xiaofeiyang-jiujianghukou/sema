@@ -114,7 +114,9 @@ export default function Course(): JSX.Element {
               }}
             >
               <Text style={styles.stateIcon}>{c.state === "completed" ? (c.stars >= 3 ? "⭐" : "✅") : c.state === "locked" ? "🔒" : "▶️"}</Text>
-              <Text style={[styles.cardTitle, c.state === "locked" && styles.dimText, { flex: 1 }]}>{c.title}</Text>
+              <Text style={[styles.cardTitle, c.state === "locked" && styles.dimText, { flex: 1 }]}>
+                {c.words ? "📝 " : "🗣️ "}{c.title}
+              </Text>
               {c.state === "completed" && <Text style={styles.starText}>{"★".repeat(c.stars)}{"☆".repeat(3 - c.stars)}</Text>}
               {c.state !== "completed" && <Text style={styles.reward}>+{c.rewardCents}厘</Text>}
             </Pressable>
