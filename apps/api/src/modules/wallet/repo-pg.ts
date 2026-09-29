@@ -159,6 +159,7 @@ interface UserRow {
   display_name: string;
   target_lang: string | null;
   levels: string | null;
+  level: string | null;
   password_hash: string | null;
   password_salt: string | null;
   created_at: Date;
@@ -183,6 +184,11 @@ const rowToUser = (r: UserRow): UserAccount => {
     createdAtMs: new Date(r.created_at).getTime(),
   };
   if (levels) user.levels = levels;
+  // 旧数据迁移：levels 为空但旧全局 level 有值 → 视作当前课程的水平，
+  // 避免老用户每次重启都被要求重新选课定级
+  if (!user.levels && r.level && r.target_lang) {
+    user.levels = { [r.target_lang as "en" | "ja" | "ko"]: r.level as NonNullable<UserAccount["level"]> };
+  }
   return user;
 };
 
@@ -213,7 +219,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async get(id: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, levels, password_hash, password_salt, created_at FROM users WHERE id = $1",
+      "SELECT id, phone, display_name, target_lang, levels, level, password_hash, password_salt, created_at FROM users WHERE id = $1",
       [id],
     );
     return rows[0] ? rowToUser(rows[0]) : null;
@@ -221,7 +227,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async findByPhone(phone: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, levels, password_hash, password_salt, created_at FROM users WHERE phone = $1",
+      "SELECT id, phone, display_name, target_lang, levels, level, password_hash, password_salt, created_at FROM users WHERE phone = $1",
       [phone],
     );
     return rows[0] ? rowToUser(rows[0]) : null;

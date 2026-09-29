@@ -62,8 +62,8 @@ export default function Course(): JSX.Element {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
-      {/* 课程切换 */}
-      <View style={styles.langRow}>
+      {/* 课程切换：横向滚动 chips，可扩展任意多门课程 */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
         {(Object.keys(LANGS) as Array<"en" | "ja" | "ko">).map((l) => (
           <Pressable key={l} style={[styles.langBtn, lang === l && styles.langBtnOn]} onPress={() => void switchCourse(l)}>
             <Text style={styles.langFlag}>{LANGS[l].flag}</Text>
@@ -72,7 +72,11 @@ export default function Course(): JSX.Element {
             {user?.levels?.[l] && <Text style={styles.langLevel}>{LEVEL_LABEL[user.levels[l]!]}</Text>}
           </Pressable>
         ))}
-      </View>
+        <Pressable style={styles.langBtnMore} onPress={() => Alert.alert("更多课程", "法语 / 西语 / 德语等课程陆续开放，敬请期待。")}>
+          <Text style={styles.langFlag}>＋</Text>
+          <Text style={styles.langLabel}>更多</Text>
+        </Pressable>
+      </ScrollView>
 
       {/* 课程进度 + 继续学习 */}
       {challenges && challenges.length > 0 && (
@@ -132,8 +136,9 @@ export default function Course(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#081a2c" },
-  langRow: { flexDirection: "row", gap: 8 },
-  langBtn: { flex: 1, borderRadius: 12, borderWidth: 2, borderColor: "#1f3d55", backgroundColor: "#0d2233", paddingVertical: 10, alignItems: "center", gap: 2 },
+  langRow: { flexDirection: "row", gap: 8, paddingRight: 16 },
+  langBtn: { width: 92, borderRadius: 12, borderWidth: 2, borderColor: "#1f3d55", backgroundColor: "#0d2233", paddingVertical: 10, alignItems: "center", gap: 2 },
+  langBtnMore: { width: 92, borderRadius: 12, borderWidth: 2, borderStyle: "dashed", borderColor: "#2a4a66", backgroundColor: "transparent", paddingVertical: 10, alignItems: "center", gap: 2 },
   langBtnOn: { borderColor: "#1a73e8", backgroundColor: "#153a5c" },
   langFlag: { fontSize: 22 },
   langLabel: { color: "#9fb8c9", fontSize: 13 },
