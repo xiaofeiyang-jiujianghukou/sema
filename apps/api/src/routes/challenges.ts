@@ -53,8 +53,12 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
   app.get("/:id/exercises", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     try {
-      const { level, threshold } = await levelOf(req.userId, (req.params as { id: string }).id);
-      return { exercises: app.challenges.exercises((req.params as { id: string }).id, level), threshold };
+      const id = (req.params as { id: string }).id;
+      const lesson = CHALLENGES.find((x) => x.id === id);
+      if (!lesson) return reply.code(404).send({ error: "关卡不存在" });
+      if (lesson.words === null) return reply.code(400).send({ error: "对话关没有练习题" });
+      const { level, threshold } = await levelOf(req.userId, id);
+      return { exercises: app.challenges.exercises(id, level), threshold };
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : "出题失败" });
     }

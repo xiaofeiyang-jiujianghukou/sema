@@ -69,15 +69,28 @@ export default function ChallengePlay(): JSX.Element {
 
   useEffect(() => {
     if (!token || !id) return;
+    let cancelled = false;
     setLoading(true);
-    Promise.all([api.challenges(token, lang), api.challengeExercises(token, id)])
-      .then(([res, ex]) => {
-        setChallenge(res.challenges.find((c) => c.id === id) ?? null);
-        setExercises(ex.exercises);
-        setThreshold(ex.threshold);
-      })
-      .catch((err: Error) => Alert.alert("加载失败", err.message))
-      .finally(() => setLoading(false));
+    void (async () => {
+      try {
+        const res = await api.challenges(token, lang);
+        const c = res.challenges.find((x) => x.id === id) ?? null;
+        if (cancelled) return;
+        setChallenge(c);
+        // 只有词表关（练习关）才拉题；对话关走对话 UI
+        if (c && c.words) {
+          const ex = await api.challengeExercises(token, id);
+          if (cancelled) return;
+          setExercises(ex.exercises);
+          setThreshold(ex.threshold);
+        }
+      } catch (err) {
+        Alert.alert("加载失败", err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [token, id, lang]);
 
   const nextExercise = useCallback((ok: boolean): void => {
