@@ -67,6 +67,8 @@ export function useVoiceMode(opts: {
   const playTokenRef = useRef(0);
   /** 录音中 / 非接收窗口：丢弃旧回复的 TTS 尾流，防止污染下一轮音频缓冲 */
   const discardChunksRef = useRef(false);
+  /** 录音操作串行锁：Android 同一时刻只允许一个 Recording，快速连按必须排队 */
+  const recordingLockRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const stopPlayback = useCallback(async (): Promise<void> => {
     playTokenRef.current += 1; // 作废在途的 playPcm
@@ -176,6 +178,7 @@ export function useVoiceMode(opts: {
   }, [stopPlayback]);
 
   const pushToTalkStart = useCallback(async (): Promise<void> => {
+    const run = recordingLockRef.current.then(async () => {
     if (!clientRef.current) {
       start();
       // 等 ready 再录，避免整段上传被"会话尚未开始"拒绝
@@ -192,6 +195,12 @@ export function useVoiceMode(opts: {
     await stopPlayback();
     pcmRef.current = [];
     try {
+      // 预清理：上一段录音若尚未卸载（快速连按/手势误触），先卸载再创建，
+      // 否则 Android 抛 "Only one Recording object can be prepared at a given time"
+      if (recordingRef.current) {
+        try { await recordingRef.current.stopAndUnloadAsync(); } catch { /* 已卸载 */ }
+        recordingRef.current = null;
+      }
       // expo-av 要求显式请求麦克风权限（Expo Go 不自动弹）
       const perm = await Audio.requestPermissionsAsync();
       if (!perm.granted) {
@@ -211,19 +220,30 @@ export function useVoiceMode(opts: {
       console.error("[voice] pushToTalkStart 失败:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       opts.onError(`无法开始录音: ${err instanceof Error ? err.message : String(err)}`);
     }
+    });
+    recordingLockRef.current = run.catch(() => undefined);
+    return run;
   }, [opts, start, stopPlayback]);
 
   const pushToTalkEnd = useCallback(async (): Promise<void> => {
+    const run = recordingLockRef.current.then(async () => {
     const recording = recordingRef.current as Audio.Recording | null;
-    recordingRef.current = null;
     if (!recording) return;
     try {
-      await recording.stopAndUnloadAsync();
+      await recording.stopAndUnloadAsync(); // 卸载完成后再清引用，避免新录音与旧卸载并发
+      recordingRef.current = null;
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, shouldDuckAndroid: true });
       const uri = recording.getURI();
       if (!uri || !clientRef.current) return;
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       void FileSystem.deleteAsync(uri, { idempotent: true });
+      if (base64.length * 3 / 4 < 1500) {
+        // 误触/滑动产生的空录音（<0.3s）直接丢弃，不浪费服务端识别
+        console.log(`[voice] 录音过短(${Math.round(base64.length * 3 / 4)}B)，丢弃`);
+        opts.onError("没听清，太短了，请按住说话");
+        setState("listening");
+        return;
+      }
       setState("thinking");
       console.log(`[voice] 上传 AAC: ${Math.round(base64.length * 3 / 4 / 1024)}KB`);
       clientRef.current.sendAacBase64(base64);
@@ -231,7 +251,11 @@ export function useVoiceMode(opts: {
       console.error("[voice] pushToTalkEnd 失败:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       opts.onError(`上传语音失败: ${err instanceof Error ? err.message : String(err)}`);
       setState("listening");
+      recordingRef.current = null;
     }
+    });
+    recordingLockRef.current = run.catch(() => undefined);
+    return run;
   }, [opts]);
 
   useEffect(() => () => {
