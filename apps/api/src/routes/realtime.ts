@@ -108,9 +108,18 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
             app.speech.asr,
             app.speech.tts,
             {
-              onUserUtterance: (text) => send({ type: "user-utterance", text }),
-              onReplyStart: () => send({ type: "reply-start" }),
-              onReply: (info) => send({ type: "reply", ...info }),
+              onUserUtterance: (text) => {
+                console.log(`[realtime] ASR 出段: "${text}"`);
+                send({ type: "user-utterance", text });
+              },
+              onReplyStart: () => {
+                console.log("[realtime] LLM 回复生成中");
+                send({ type: "reply-start" });
+              },
+              onReply: (info) => {
+                console.log(`[realtime] 回复: "${info.reply.slice(0, 40)}" 计费${info.chargedCents}厘`);
+                send({ type: "reply", ...info });
+              },
               onAudioChunk: (chunk) => {
                 if (socket.readyState === socket.OPEN) socket.send(chunk);
               },

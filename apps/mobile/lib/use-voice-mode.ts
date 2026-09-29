@@ -113,6 +113,7 @@ export function useVoiceMode(opts: {
         }
       });
     } catch (err) {
+      console.error("[voice] playPcm 失败:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       opts.onError(`播放失败: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [opts]);
@@ -186,6 +187,7 @@ export function useVoiceMode(opts: {
       recordingRef.current = recording;
       setState("listening");
     } catch (err) {
+      console.error("[voice] pushToTalkStart 失败:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       opts.onError(`无法开始录音: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [opts, start, stopPlayback]);
@@ -202,8 +204,10 @@ export function useVoiceMode(opts: {
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       void FileSystem.deleteAsync(uri, { idempotent: true });
       setState("thinking");
+      console.log(`[voice] 上传 AAC: ${Math.round(base64.length * 3 / 4 / 1024)}KB`);
       clientRef.current.sendAacBase64(base64);
     } catch (err) {
+      console.error("[voice] pushToTalkEnd 失败:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       opts.onError(`上传语音失败: ${err instanceof Error ? err.message : String(err)}`);
       setState("listening");
     }

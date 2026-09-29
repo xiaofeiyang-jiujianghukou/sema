@@ -260,10 +260,14 @@ export class ConversationService {
     };
   }
 
-  /** 水表走字：结清自上次结算以来的秒数（每个秒段一笔、幂等） */
+  /**
+   * 水表走字：结清自上次结算以来的秒数（每个秒段一笔、幂等）。
+   * 空档封顶 300s（5 分钟）：会话闲置（切后台/忘关页面）的时间不计时——
+   * 否则隔夜回来第一句话会被一次性扣掉数小时费用，对用户不公平。
+   */
   private async accrue(session: ConversationSession): Promise<number> {
     const nowMs = this.now();
-    const elapsedSeconds = Math.floor((nowMs - session.lastBilledAtMs) / 1000);
+    const elapsedSeconds = Math.min(300, Math.floor((nowMs - session.lastBilledAtMs) / 1000));
     if (elapsedSeconds <= 0) return 0;
 
     const { entry } = await this.wallets.charge(

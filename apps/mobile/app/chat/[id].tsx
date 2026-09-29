@@ -50,6 +50,16 @@ export default function Chat(): JSX.Element {
     onError: (message) => Alert.alert("语音提示", message),
   });
 
+  // 语音默认开启：进对话即接通（像打电话，按秒计费，静音也计时；闲置超 5 分钟的空档服务端不计时）
+  const voiceAutoStarted = useRef(false);
+  useEffect(() => {
+    if (!token || voiceAutoStarted.current) return;
+    voiceAutoStarted.current = true;
+    voice.start();
+    setVoiceOn(true);
+    // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]);
+
   // 离开对话即断语音
   useEffect(() => () => voice.stop(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
