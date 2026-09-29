@@ -20,6 +20,9 @@ const REC: Audio.RecordingOptions = {
   web: {},
 };
 
+/** 连线配对色板：第 i 对锁定后左右同色显示 */
+const PAIR_COLORS = ["#4da3ff", "#7ee2a8", "#ffb84d", "#e08fd0", "#ffd24d", "#8fd3ff"];
+
 /** 电击抖动容器：trigger 递增时播放左右抖动 */
 function Shake({ trigger, children }: { trigger: number; children: React.ReactNode }): JSX.Element {
   const x = useRef(new Animated.Value(0)).current;
@@ -452,31 +455,36 @@ export default function ChallengePlay(): JSX.Element {
             <Text style={styles.label}>连线：先点左边的词，再点右边释义</Text>
             <View style={styles.matchRow}>
               <View style={styles.matchCol}>
-                {ex.left.map((l, li) => (
-                  <Shake key={li} trigger={matchSel === null ? shakeL : 0}>
-                    <Pressable
-                      style={[
-                        styles.matchItem,
-                        matchSel === li && styles.matchItemSel,
-                        matchLocked[li] !== undefined && styles.matchItemLocked,
-                      ]}
-                      onPress={() => tapLeft(li)}
-                    >
-                      <Text style={styles.matchText}>{l}</Text>
-                    </Pressable>
-                  </Shake>
-                ))}
+                {ex.left.map((l, li) => {
+                  const locked = matchLocked[li] !== undefined;
+                  const color = PAIR_COLORS[li % PAIR_COLORS.length]!;
+                  return (
+                    <Shake key={li} trigger={matchSel === null ? shakeL : 0}>
+                      <Pressable
+                        style={[
+                          styles.matchItem,
+                          matchSel === li && styles.matchItemSel,
+                          locked && { borderColor: color, backgroundColor: `${color}26` },
+                        ]}
+                        onPress={() => tapLeft(li)}
+                      >
+                        <Text style={[styles.matchText, locked && { color, fontWeight: "700" }]}>{l}</Text>
+                      </Pressable>
+                    </Shake>
+                  );
+                })}
               </View>
               <View style={styles.matchCol}>
                 {ex.right.map((r, ri) => {
                   const lockedBy = Object.entries(matchLocked).find(([, v]) => v === ri);
+                  const color = lockedBy ? PAIR_COLORS[Number(lockedBy[0]) % PAIR_COLORS.length]! : undefined;
                   return (
                     <Shake key={ri} trigger={matchSel === null ? shakeR : 0}>
                       <Pressable
-                        style={[styles.matchItem, lockedBy !== undefined && styles.matchItemLocked]}
+                        style={[styles.matchItem, color && { borderColor: color, backgroundColor: `${color}26` }]}
                         onPress={() => void tapRight(ri)}
                       >
-                        <Text style={styles.matchText}>{lockedBy !== undefined ? "" : r}</Text>
+                        <Text style={[styles.matchText, color && { color, fontWeight: "700" }]}>{r}</Text>
                       </Pressable>
                     </Shake>
                   );
