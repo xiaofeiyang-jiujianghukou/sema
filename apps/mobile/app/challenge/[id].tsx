@@ -206,13 +206,29 @@ export default function ChallengePlay(): JSX.Element {
     pressStartRef.current = Date.now();
     setBusy(true);
     try {
-      await Audio.requestPermissionsAsync();
-      // 释放上一题的 TTS 播放器：安卓上 Sound 未释放会占住音频会话，麦克风录到空气
+      // 预清理：上次录音若未卸载（短按泄漏/快速连按），先卸载——
+      // 安卓 expo-av 只允许一个 Recording 存活，泄漏会让新录音拿到
+      // 空输入源（诊断 rmsRaw=0 纯静音）。配方对齐 use-voice-mode。
+      if (recording) {
+        try { await recording.stopAndUnloadAsync(); } catch { /* 已卸载 */ }
+        setRecording(null);
+      }
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("无法录音", "麦克风权限被拒绝：系统设置 → 应用 → Expo Go → 权限中允许麦克风");
+        setBusy(false);
+        return;
+      }
+      // 释放上一题的 TTS 播放器，归还音频会话
       try { await soundRef.current?.stopAsync(); } catch { /* 已停止 */ }
       try { await soundRef.current?.unloadAsync(); } catch { /* 已释放 */ }
       soundRef.current = null;
-      // 不调 setAudioModeAsync：b34 实测直接 createAsync 能正常采音，
-      // 全局模式切换在安卓 Expo Go 上会把录音会话打静音（诊断 rmsRaw=0）
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+      });
       const { recording: rec } = await Audio.Recording.createAsync(REC);
       setRecording(rec);
       setFeedback(null);
@@ -234,11 +250,16 @@ export default function ChallengePlay(): JSX.Element {
       await recording.stopAndUnloadAsync();
       setRecording(null);
       if (heldMs < 500) {
+        // 短按也要卸载录音对象，否则泄漏占住输入源，后续全部静音
+        try { await recording.stopAndUnloadAsync(); } catch { /* 已卸载 */ }
+        setRecording(null);
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, shouldDuckAndroid: true });
         setFeedback({ ok: false, why: "按住的时间太短——按住说话，松开判定" });
         setBusy(false);
         return;
       }
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, shouldDuckAndroid: true });
       await uploadWord(base64, ex.wordIndex);
     } catch {
       setRecording(null);
