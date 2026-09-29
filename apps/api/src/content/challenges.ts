@@ -273,8 +273,10 @@ export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"
   // 从机制上排除 "We have _ for dinner" 任何食物都对的多解问题）
   for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
     const w = words[wi]!;
-    const distractors = pickDistractors(pool, w.term, (x) => x.term, optN - 1, rand);
-    out.push({ type: "cloze", wordIndex: wi, options: shuffled([w.term, ...distractors], rand) });
+    const exLow = w.example.toLowerCase();
+    const distractors = pickDistractors(pool, w.term, (x) => x.term, optN + 2, rand)
+      .filter((d) => !exLow.includes(d.toLowerCase())); // 句中已出现的词不能当干扰项（保证唯一解）
+    out.push({ type: "cloze", wordIndex: wi, options: shuffled([w.term, ...distractors.slice(0, optN - 1)], rand) });
   }
   // 造句 ×1：例句切词块（无标点）拼装还原
   const pIdx = Math.floor(rand() * unit.patterns.length);
@@ -289,8 +291,9 @@ export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"
 }
 
 /** 判题：按题型重算正确答案（答案不发给客户端） */
-export function checkExercise(challengeId: string, index: number, answer: unknown): CheckResult {
-  const exercises = unitExercises(challengeId);
+export function checkExercise(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero"): CheckResult {
+  // 必须与出题同一 level 重新生成同一序列——否则索引错位（egg 判成 juice 事故根源）
+  const exercises = unitExercises(challengeId, level);
   const ex = exercises[index];
   if (!ex) throw new Error("题目序号越界");
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");
@@ -311,7 +314,8 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
       return { ok, correct: w.term, why: `句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
-      const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);
+      const tiles = Array.isArray(answer) ? (answer as unknown[]).map(String) : [];
+      const ok = normEx(tiles.join("")) === normEx(ex.sentence);
       return { ok, correct: ex.sentence, why: `原句：${ex.sentence}（${ex.hint}）` };
     }
     case "listen": {
@@ -320,7 +324,7 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
       return { ok, correct: w.term, why: `读的是「${w.term}」＝ ${w.meaning}${w.reading ? `（${w.reading}）` : ""}` };
     }
     case "match": {
-      const mapping = answer as number[];
+      const mapping = Array.isArray(answer) ? (answer as unknown[]).map((v) => Number(v)) : [];
       const ok = ex.left.every((_, li) => {
         const correctRi = ex.right.findIndex((r) => r === unit.words[ex.wordIndices[li]!]!.meaning);
         return mapping[li] === correctRi;
@@ -333,8 +337,8 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
 }
 
 /** 连线逐对判定：left/right 为题目内下标；正确→锁定，错误→❗重选 */
-export function checkPair(challengeId: string, index: number, left: number, right: number): CheckResult {
-  const exercises = unitExercises(challengeId);
+export function checkPair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero"): CheckResult {
+  const exercises = unitExercises(challengeId, level);
   const ex = exercises[index];
   if (!ex || ex.type !== "match") throw new Error("该题不是连线题");
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");

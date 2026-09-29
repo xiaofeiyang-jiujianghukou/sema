@@ -97,7 +97,9 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     const parsed = z.object({ index: z.number().int().min(0).max(49), answer: z.unknown() }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     try {
-      return app.challenges.check((req.params as { id: string }).id, parsed.data.index, parsed.data.answer);
+      const id = (req.params as { id: string }).id;
+      const { level } = await levelOf(req.userId, id);
+      return app.challenges.check(id, parsed.data.index, parsed.data.answer, level);
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : "判题失败" });
     }
@@ -113,8 +115,10 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     try {
+      const id = (req.params as { id: string }).id;
       const { index, left, right } = parsed.data;
-      return app.challenges.pair((req.params as { id: string }).id, index, left, right);
+      const { level } = await levelOf(req.userId, id);
+      return app.challenges.pair(id, index, left, right, level);
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : "判定失败" });
     }

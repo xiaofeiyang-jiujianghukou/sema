@@ -96,14 +96,14 @@ export class ChallengeService {
     return unitExercises(challengeId, level);
   }
 
-  /** 混合练习判题（read 题走 verifyWord 音频通道） */
-  check(challengeId: string, index: number, answer: unknown): CheckResult {
-    return checkExercise(challengeId, index, answer);
+  /** 混合练习判题（read 题走 verifyWord 音频通道；level 与出题一致） */
+  check(challengeId: string, index: number, answer: unknown, level: ExerciseLevel = "zero"): CheckResult {
+    return checkExercise(challengeId, index, answer, level);
   }
 
   /** 连线逐对判定 */
-  pair(challengeId: string, index: number, left: number, right: number): { ok: boolean } {
-    return checkPair(challengeId, index, left, right);
+  pair(challengeId: string, index: number, left: number, right: number, level: ExerciseLevel = "zero"): CheckResult {
+    return checkPair(challengeId, index, left, right, level);
   }
 
   async list(userId: string, lang: TargetLang, all: Challenge[]): Promise<ChallengeProgress[]> {
