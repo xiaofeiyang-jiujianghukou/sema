@@ -54,12 +54,16 @@ export class VoiceClient {
       this.ws = null;
     };
 
-    ws.send(JSON.stringify({
-      type: "start",
-      token,
-      scenarioId,
-      ...(sessionId ? { sessionId } : {}),
-    }));
+    // RN 的 WebSocket 在 CONNECTING 状态 send 会同步抛 INVALID_STATE_ERR，
+    // start 帧必须等握手完成（onopen）后再发
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        type: "start",
+        token,
+        scenarioId,
+        ...(sessionId ? { sessionId } : {}),
+      }));
+    };
   }
 
   private handleJson(j: Record<string, unknown>): void {
@@ -101,11 +105,15 @@ export class VoiceClient {
 
   /** 按住说话：松手后把整段 AAC（base64）发出去 */
   sendAacBase64(base64: string): void {
-    this.ws?.send(JSON.stringify({ type: "audio-aac", data: base64 }));
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "audio-aac", data: base64 }));
+    }
   }
 
   end(): void {
-    this.ws?.send(JSON.stringify({ type: "end" }));
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "end" }));
+    }
   }
 
   close(): void {
