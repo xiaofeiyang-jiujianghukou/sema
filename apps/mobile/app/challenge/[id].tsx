@@ -309,7 +309,7 @@ export default function ChallengePlay(): JSX.Element {
         )}
         {ex.type === "cloze" && (
           <View style={styles.card}>
-            <Text style={styles.label}>听句选词：AI 读了一句话，句子里有哪个词？</Text>
+            <Text style={styles.label}>听句选句：AI 读的是哪句话？</Text>
             <Pressable style={styles.playBtn} disabled={busy || !!feedback} onPress={() => void playCloze()}>
               <Text style={styles.playText}>🔊 再听一遍</Text>
             </Pressable>
@@ -441,10 +441,10 @@ export default function ChallengePlay(): JSX.Element {
         </View>
       )}
       {ex.type === "cloze" && (
-        <View style={styles.optionGrid}>
+        <View style={{ gap: 8 }}>
           {ex.options.map((o) => (
-            <Pressable key={o} style={styles.optionBtn} disabled={busy || !!feedback} onPress={() => void submit(o)}>
-              <Text style={[styles.optionText, { fontSize: 16, fontWeight: "600" }]}>{o}</Text>
+            <Pressable key={o} style={styles.sentenceBtn} disabled={busy || !!feedback} onPress={() => void submit(o)}>
+              <Text style={styles.sentenceText}>{o}</Text>
             </Pressable>
           ))}
         </View>
@@ -518,6 +518,8 @@ const styles = StyleSheet.create({
   micBtnRec: { backgroundColor: "#e05555" },
   micBtnBusy: { opacity: 0.6 },
   micText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  sentenceBtn: { backgroundColor: "#0d2233", borderRadius: 12, borderWidth: 2, borderColor: "#2a4a66", paddingVertical: 12, paddingHorizontal: 14 },
+  sentenceText: { color: "#f2f7fa", fontSize: 15, lineHeight: 22 },
   optionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   optionBtn: { flexGrow: 1, flexBasis: "47%", backgroundColor: "#0d2233", borderRadius: 12, borderWidth: 2, borderColor: "#2a4a66", paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
   optionText: { color: "#f2f7fa", fontSize: 14, textAlign: "center" },

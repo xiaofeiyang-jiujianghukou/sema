@@ -269,14 +269,27 @@ export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"
     const shown = truthful ? words[wi]!.meaning : other.meaning;
     out.push({ type: "tf", prompt: `「${words[wi]!.term}」的意思是「${shown}」？`, wordIndex: wi, shown });
   }
-  // 听句选词 ×2：AI 读完整例句 → 选句中出现的词（音频即唯一解，
-  // 从机制上排除 "We have _ for dinner" 任何食物都对的多解问题）
-  for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
-    const w = words[wi]!;
-    const exLow = w.example.toLowerCase();
-    const distractors = pickDistractors(pool, w.term, (x) => x.term, optN + 2, rand)
-      .filter((d) => !exLow.includes(d.toLowerCase())); // 句中已出现的词不能当干扰项（保证唯一解）
-    out.push({ type: "cloze", wordIndex: wi, options: shuffled([w.term, ...distractors.slice(0, optN - 1)], rand) });
+  // 听句选句 ×2：AI 读完整例句 → 选听到的那句（音频即唯一解，
+  // 从机制上排除 "We have _ for dinner" 任何食物都对的多解问题；
+  // 选项为整句，与听音辨词的单词选项在玩法上区分）
+  {
+    const sentencePool = shuffled(words.map((_, i) => i), rand);
+    for (const wi of sentencePool.slice(0, 2)) {
+      const w = words[wi]!;
+      const exs = new Set([w.example]);
+      for (const oi of sentencePool) {
+        if (exs.size >= optN) break;
+        if (oi === wi) continue;
+        const cand = words[oi]!.example;
+        if (!exs.has(cand)) exs.add(cand);
+      }
+      // 本单元例句不够时用句型例句补位
+      for (const p of unit.patterns) {
+        if (exs.size >= optN) break;
+        if (!exs.has(p.example)) exs.add(p.example);
+      }
+      out.push({ type: "cloze", wordIndex: wi, options: shuffled([...exs], rand) });
+    }
   }
   // 造句 ×1：例句切词块（无标点）拼装还原
   const pIdx = Math.floor(rand() * unit.patterns.length);
@@ -310,8 +323,8 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
     }
     case "cloze": {
       const w = unit.words[ex.wordIndex]!;
-      const ok = normEx(String(answer)) === normEx(w.term);
-      return { ok, correct: w.term, why: `句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
+      const ok = normEx(String(answer)) === normEx(w.example);
+      return { ok, correct: w.example, why: `听到的就是：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
       const tiles = Array.isArray(answer) ? (answer as unknown[]).map(String) : [];
