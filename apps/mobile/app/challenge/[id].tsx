@@ -207,6 +207,10 @@ export default function ChallengePlay(): JSX.Element {
     setBusy(true);
     try {
       await Audio.requestPermissionsAsync();
+      // 释放上一题的 TTS 播放器：安卓上 Sound 未释放会占住音频会话，麦克风录到空气
+      try { await soundRef.current?.stopAsync(); } catch { /* 已停止 */ }
+      try { await soundRef.current?.unloadAsync(); } catch { /* 已释放 */ }
+      soundRef.current = null;
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, shouldDuckAndroid: true, playThroughEarpieceAndroid: false });
       const { recording: rec } = await Audio.Recording.createAsync(REC);
       setRecording(rec);
