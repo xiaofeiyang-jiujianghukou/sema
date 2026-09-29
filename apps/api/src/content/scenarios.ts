@@ -10,6 +10,10 @@
  * - 纠错策略：对话中只做「自然示范」，集中纠错留给结束后的复盘报告（M2）
  */
 
+import enA1 from "./curriculum/en-a1.json" with { type: "json" };
+import jaN5 from "./curriculum/ja-n5.json" with { type: "json" };
+import koTopik1 from "./curriculum/ko-topik1.json" with { type: "json" };
+
 /** 学习目标语言（母语固定为中文；其他语言对后续按此抽象扩展） */
 export type TargetLang = "en" | "ja" | "ko";
 export type SourceLang = "zh";
@@ -59,6 +63,8 @@ export interface Scenario {
   targetVocab: string[];
   /** 导师人设 prompt（含纠错策略与难度校准） */
   systemPrompt: string;
+  /** 课程对话课专属场景：不出现在自由聊天场景列表，只从课程页进入 */
+  lessonOnly?: boolean;
 }
 
 const CORRECTION_POLICY =
@@ -788,7 +794,94 @@ const SCENARIOS_KO: readonly Scenario[] = [
   },
 ];
 
-export const SCENARIOS: readonly Scenario[] = [...SCENARIOS_EN, ...SCENARIOS_JA, ...SCENARIOS_KO];
+/* ════════════════ 课程对话课专属场景（每单元一个，由课程大纲生成） ════════════════ */
+
+interface LessonUnit {
+  id: string;
+  order: number;
+  title: string;
+  dialogueGoal: string;
+  words: { term: string }[];
+  patterns: string[];
+}
+
+const LESSON_PERSONA: Record<TargetLang, { name: string; role: string; personality: string }> = {
+  en: { name: "Maya", role: "your friendly practice partner for this unit", personality: "warm, patient, encouraging, loves helping beginners" },
+  ja: { name: "みさき", role: "this unit's practice partner", personality: "warm, patient, encouraging" },
+  ko: { name: "지민", role: "this unit's practice partner", personality: "warm, patient, encouraging" },
+};
+
+const LESSON_EMOJI = ["👋", "🕐", "👨‍👩‍👧", "🍽️", "📅", "🗺️", "🛍️", "☀️"];
+
+const LESSON_OPENERS: Record<TargetLang, string[]> = {
+  en: [
+    "Hi! I'm Maya. Nice to meet you — what's your name?",
+    "Hi, I'm Maya! What time is it now? And when do you usually get up?",
+    "Hi! I'm Maya. Tell me about your family — do you have any brothers or sisters?",
+    "Hey, I'm Maya! I'm so hungry — what do you like to eat?",
+    "Hi, I'm Maya! Tell me about your day — what do you do in the morning?",
+    "Hi, I'm Maya! I'm a bit lost — can you tell me the way to the station?",
+    "Hi! I'm Maya. I want to buy a gift — how much is this bag?",
+    "Hi, I'm Maya! What do you like doing on weekends? Is it sunny today?",
+  ],
+  ja: [
+    "こんにちは！みさきです。はじめまして、お名前は？",
+    "こんにちは！今、何時ですか？毎朝何時に起きますか？",
+    "こんにちは！ご家族の話を聞かせてください。兄弟はいますか？",
+    "こんにちは、お腹がすきましたね！好きな食べ物は何ですか？",
+    "こんにちは！毎日のことを教えてください。朝は何をしますか？",
+    "すみません、道がわからなくて…駅はどこですか？",
+    "こんにちは！これはいくらですか？プレゼントを買いたいです。",
+    "こんにちは！週末は何をしますか？今日の天気はどうですか？",
+  ],
+  ko: [
+    "안녕하세요! 저는 지민이에요. 처음 뵙겠습니다, 이름이 뭐예요?",
+    "안녕하세요! 지금 몇 시예요? 보통 몇 시에 일어나요?",
+    "안녕하세요! 가족 이야기를 들려주세요. 형제자매가 있어요?",
+    "안녕하세요, 저 배고파요! 좋아하는 음식이 뭐예요?",
+    "안녕하세요! 하루 일과를 말해 주세요. 아침에 뭐 해요?",
+    "저기요, 길을 잘 모르겠어요… 역이 어디예요?",
+    "안녕하세요! 이거 얼마예요? 선물을 사고 싶어요.",
+    "안녕하세요! 주말에 뭐 해요? 오늘 날씨는 어때요?",
+  ],
+};
+
+const LESSON_LEVEL: Record<TargetLang, string> = { en: "CEFR A1", ja: "JLPT N5", ko: "TOPIK I" };
+
+function lessonScenario(lang: TargetLang, u: LessonUnit): Scenario {
+  const persona = LESSON_PERSONA[lang]!;
+  const terms = u.words.map((w) => w.term).slice(0, 10).join(", ");
+  const calibration =
+    `This learner is at ${LESSON_LEVEL[lang]!} beginner level. This lesson's goal: ${u.dialogueGoal}. ` +
+    `Target vocabulary: ${terms}. Gently steer the conversation so the learner can practice these words and patterns.`;
+  const personaBlock = `You are ${persona.name}, ${persona.role}. Personality: ${persona.personality}. Unit topic: ${u.title}.`;
+  return {
+    id: `${u.id}-scene`,
+    sourceLang: "zh",
+    targetLang: lang,
+    title: `${u.title} · 对话练习`,
+    titleEn: `Unit ${u.order}: ${u.title}`,
+    emoji: LESSON_EMOJI[(u.order - 1) % LESSON_EMOJI.length] ?? "💬",
+    difficulty: "A1",
+    persona,
+    setting: u.dialogueGoal,
+    opener: LESSON_OPENERS[lang]?.[u.order - 1] ?? LESSON_OPENERS[lang]![0]!,
+    goals: [u.dialogueGoal, "用上本课至少 3 个词汇或句型", "自然完成整段对话，不中途冷场"],
+    targetVocab: [...u.words.map((w) => w.term), ...u.patterns].slice(0, 13),
+    systemPrompt: rules(lang, personaBlock, calibration),
+    lessonOnly: true,
+  };
+}
+
+const LESSON_UNITS: readonly { lang: TargetLang; unit: LessonUnit }[] = [
+  ...((enA1 as unknown as { units: LessonUnit[] }).units.map((u) => ({ lang: "en" as TargetLang, unit: u }))),
+  ...((jaN5 as unknown as { units: LessonUnit[] }).units.map((u) => ({ lang: "ja" as TargetLang, unit: u }))),
+  ...((koTopik1 as unknown as { units: LessonUnit[] }).units.map((u) => ({ lang: "ko" as TargetLang, unit: u }))),
+];
+
+export const LESSON_SCENARIOS: readonly Scenario[] = LESSON_UNITS.map(({ lang, unit }) => lessonScenario(lang, unit));
+
+export const SCENARIOS: readonly Scenario[] = [...SCENARIOS_EN, ...SCENARIOS_JA, ...SCENARIOS_KO, ...LESSON_SCENARIOS];
 
 export function getScenario(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
@@ -806,6 +899,7 @@ export interface ScenarioSummary {
 
 export function listScenarioSummaries(targetLang?: TargetLang): ScenarioSummary[] {
   return SCENARIOS
+    .filter((s) => !s.lessonOnly)
     .filter((s) => targetLang === undefined || s.targetLang === targetLang)
     .map(({ id, targetLang: lang, title, titleEn, emoji, difficulty, setting }) => ({
       id,

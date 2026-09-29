@@ -62,7 +62,8 @@ describe("情景内容资产质量门槛", () => {
     expect(getScenario("cafe-order-ja")?.targetLang).toBe("ja");
     expect(getScenario("nope")).toBeUndefined();
     const summaries = listScenarioSummaries();
-    expect(summaries).toHaveLength(SCENARIOS.length);
+    // 课程对话课专属场景（lessonOnly）不进自由聊天列表
+    expect(summaries).toHaveLength(SCENARIOS.filter((s) => !s.lessonOnly).length);
     for (const summary of summaries) {
       expect(JSON.stringify(summary)).not.toContain("systemPrompt");
     }

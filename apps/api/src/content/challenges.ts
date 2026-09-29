@@ -117,7 +117,7 @@ function buildChallenges(curriculum: Curriculum): Challenge[] {
       rewardCents: 50 + 5 * (unit.order - 1),
       requiredTurns: dialogueTurns(unit.order),
       words: null,
-      scenarioId: null,
+      scenarioId: `${unit.id}-scene`,
     });
   }
   return list;
