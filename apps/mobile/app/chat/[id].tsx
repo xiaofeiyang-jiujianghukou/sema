@@ -66,6 +66,28 @@ export default function Chat(): JSX.Element {
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [lookup, setLookup] = useState<{ msgIndex: number; word: string; loading: boolean; result?: LookupResult; saved?: boolean } | null>(null);
   const [translations, setTranslations] = useState<Record<number, { loading: boolean; text?: string; charged?: number; balance?: string }>>({});
+  /** 打字机呈现：最新一条 AI 回复按输出顺序逐段显示，视图自动跟随（读完整段，无需手动滑） */
+  const [reveal, setReveal] = useState<{ index: number; pos: number } | null>(null);
+  const revealTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startReveal = (index: number, text: string): void => {
+    if (revealTimer.current) clearInterval(revealTimer.current);
+    const ticks = Math.max(8, Math.min(80, Math.ceil(text.length / 6))); // 总时长约 0.8~8s，长文加速
+    let tick = 0;
+    setReveal({ index, pos: 0 });
+    revealTimer.current = setInterval(() => {
+      tick += 1;
+      const pos = Math.round((text.length * tick) / ticks);
+      if (tick >= ticks) {
+        if (revealTimer.current) clearInterval(revealTimer.current);
+        revealTimer.current = null;
+        setReveal(null); // 显示全文
+      } else {
+        setReveal({ index, pos });
+      }
+      listRef.current?.scrollToEnd({ animated: true }); // 内容增长时视图自动跟随
+    }, 100);
+  };
   const [pressing, setPressing] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
@@ -114,7 +136,11 @@ export default function Chat(): JSX.Element {
     scenarioId: scenarioId ?? "coffee-order",
     sessionId: id,
     onEvent: (ev) => {
-      setMessages((m) => [...m, { role: ev.kind, text: ev.text, chargedCents: ev.chargedCents, balanceCredits: ev.balanceCredits }]);
+      setMessages((m) => {
+        const idx = m.length;
+        if (ev.kind === "assistant") setTimeout(() => startReveal(idx, ev.text), 0);
+        return [...m, { role: ev.kind, text: ev.text, chargedCents: ev.chargedCents, balanceCredits: ev.balanceCredits }];
+      });
       if (ev.kind === "assistant") setSessionTotal((t) => t + (ev.chargedCents ?? 0));
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     },
@@ -140,6 +166,7 @@ export default function Chat(): JSX.Element {
 
   // 离开对话即断语音
   useEffect(() => () => voice.stop(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (revealTimer.current) clearInterval(revealTimer.current); }, []);
 
   const send = async (): Promise<void> => {
     const text = input.trim();
@@ -149,7 +176,11 @@ export default function Chat(): JSX.Element {
     setSending(true);
     try {
       const turn = await api.turn(token, id, text);
-      setMessages((m) => [...m, { role: "assistant", text: turn.reply, chargedCents: turn.chargedCents, balanceCredits: turn.balanceCredits }]);
+      setMessages((m) => {
+        const idx = m.length;
+        setTimeout(() => startReveal(idx, turn.reply), 0);
+        return [...m, { role: "assistant", text: turn.reply, chargedCents: turn.chargedCents, balanceCredits: turn.balanceCredits }];
+      });
       setSessionTotal((t) => t + turn.chargedCents);
     } catch (err) {
       if (err instanceof ApiError && err.code === "INSUFFICIENT_FUNDS") {
@@ -204,7 +235,10 @@ export default function Chat(): JSX.Element {
           >
             {item.role === "assistant" ? (
               <>
-                <TappableText text={item.text} onWord={(word) => void handleWordLookup(index, word, item.text)} />
+                <TappableText
+                  text={reveal?.index === index ? item.text.slice(0, reveal.pos) : item.text}
+                  onWord={(word) => void handleWordLookup(index, word, item.text)}
+                />
                 {lookup?.msgIndex === index && (
                   <View style={styles.lookupCard}>
                     {lookup.loading ? (
