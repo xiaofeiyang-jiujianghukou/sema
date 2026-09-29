@@ -230,6 +230,10 @@ export function useVoiceMode(opts: {
     const recording = recordingRef.current as Audio.Recording | null;
     if (!recording) return;
     try {
+      // 松手后延迟停止：MediaRecorder 的编码器缓冲有滞后，立刻 stop 会
+      // 丢掉句尾几百毫秒（实测 "I want a coffee" 只剩 "I want a"）。
+      // 让录音多跑一小段，把句尾和缓冲一起收进来
+      await new Promise<void>((resolve) => setTimeout(resolve, 400));
       await recording.stopAndUnloadAsync(); // 卸载完成后再清引用，避免新录音与旧卸载并发
       recordingRef.current = null;
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, shouldDuckAndroid: true });
