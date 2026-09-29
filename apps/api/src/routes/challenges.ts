@@ -38,6 +38,28 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** 混合练习题目（选择/判断/完形/造句/连线/跟读，答案不下发） */
+  app.get("/:id/exercises", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    try {
+      return { exercises: app.challenges.exercises((req.params as { id: string }).id) };
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : "出题失败" });
+    }
+  });
+
+  /** 混合练习判题 */
+  app.post("/:id/check", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const parsed = z.object({ index: z.number().int().min(0).max(49), answer: z.unknown() }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
+    try {
+      return app.challenges.check((req.params as { id: string }).id, parsed.data.index, parsed.data.answer);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : "判题失败" });
+    }
+  });
+
   /** 单词判定：一次一个词（游戏化即时反馈） */
   app.post("/:id/word", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });

@@ -254,6 +254,14 @@ export const api = {
       `/v1/challenges/${id}/word`,
       { method: "POST", token, body: JSON.stringify({ audioBase64, index }) },
     ),
+  challengeExercises: (token: string, id: string) =>
+    request<{ exercises: import("./api.exercises").Exercise[] }>(`/v1/challenges/${id}/exercises`, { token }),
+  challengeCheck: (token: string, id: string, index: number, answer: unknown) =>
+    request<{ ok: boolean; correct?: string }>(`/v1/challenges/${id}/check`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ index, answer }),
+    }),
   challengeClaim: (token: string, id: string, matched: number) =>
     request<{ rewardedCents: number; alreadyDone: boolean; balanceCredits: string }>(
       `/v1/challenges/${id}/claim`,

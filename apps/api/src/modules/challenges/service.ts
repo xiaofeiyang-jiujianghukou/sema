@@ -2,8 +2,8 @@
  * 闯关服务：状态查询 + 三种过关判定（跟读语音、情景对话轮数、任意对话轮数）+ 奖励发放
  * 奖励走钱包 grant（幂等键 challenge:<id>），过关记录一次性（user_challenges 主键约束）
  */
-import type { Challenge } from "../../content/challenges.js";
-import { getChallenge } from "../../content/challenges.js";
+import type { Challenge, Exercise, CheckResult } from "../../content/challenges.js";
+import { getChallenge, unitExercises, checkExercise } from "../../content/challenges.js";
 import type { TargetLang } from "../../content/scenarios.js";
 
 export interface ChallengeProgress {
@@ -86,8 +86,20 @@ export interface ChallengeDeps {
 
 const TIER_ORDER: Challenge["tier"][] = ["beginner", "intermediate", "advanced"];
 
+export type { Exercise, CheckResult };
+
 export class ChallengeService {
   constructor(private readonly deps: ChallengeDeps) {}
+
+  /** 混合练习题目（答案不下发，判题在服务端） */
+  exercises(challengeId: string): Exercise[] {
+    return unitExercises(challengeId);
+  }
+
+  /** 混合练习判题（read 题走 verifyWord 音频通道） */
+  check(challengeId: string, index: number, answer: unknown): CheckResult {
+    return checkExercise(challengeId, index, answer);
+  }
 
   async list(userId: string, lang: TargetLang, all: Challenge[]): Promise<ChallengeProgress[]> {
     const completed = await this.deps.repo.listCompleted(userId);

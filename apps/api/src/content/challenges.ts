@@ -91,9 +91,9 @@ function buildChallenges(curriculum: Curriculum): Challenge[] {
       order: unit.order * 2 - 1,
       group: `${curriculum.band} · 第${unit.order}单元 ${unit.title}`,
       title: `第${unit.order}课 · 词表跟读（${unit.title}）`,
-      description: `朗读本课 ${unit.words.length} 个词，读对 ${Math.ceil(unit.words.length * 0.8)} 个过关`,
+      description: `混合练习：跟读、选择、判断、完形、造句、连线，共 10 题`,
       rewardCents: 20 + 2 * (unit.order - 1),
-      requiredTurns: Math.ceil(unit.words.length * 0.8),
+      requiredTurns: 7,
       words: buildWords(unit, curriculum.lang),
       scenarioId: null,
     });
@@ -122,6 +122,176 @@ export function challengesForLang(lang: TargetLang): Challenge[] {
 
 export function getChallenge(id: string): Challenge | undefined {
   return CHALLENGES.find((c) => c.id === id);
+}
+
+// ═══ 混合练习：题型生成与判题 ═══
+
+export type Exercise =
+  | { type: "read"; wordIndex: number; word: string; display: string }
+  | { type: "mc"; prompt: string; options: string[]; wordIndex: number }
+  | { type: "tf"; prompt: string; wordIndex: number; shown: string }
+  | { type: "cloze"; sentence: string; options: string[]; wordIndex: number }
+  | { type: "build"; tiles: string[]; hint: string; sentence: string }
+  | { type: "match"; left: string[]; right: string[]; wordIndices: number[] };
+
+export interface CheckResult {
+  ok: boolean;
+  /** 判错时给出正确答案（学习反馈） */
+  correct?: string;
+}
+
+const normEx = (v: string): string => v.toLowerCase().replace(/[\s.,!?、。！？，]/g, "");
+
+/** 字符串种子 → 确定性伪随机（同一关每次生成同一套题） */
+function seededRandom(seed: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+function shuffled<T>(arr: readonly T[], rand: () => number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
+/** 日/韩无空格：按助词/词尾切块（块与块拼接恒等于原句，判题不受切块质量影响） */
+const JA_CUTS = ["から", "まで", "ました", "ません", "でした", "です", "ます", "は", "が", "を", "に", "で", "へ", "と", "も", "か", "ね", "よ"];
+const KO_CUTS = ["에서", "에게", "합니다", "입니다", "이에요", "예요", "으로", "은", "는", "이", "가", "을", "를", "에", "도", "로"];
+export function splitTiles(sentence: string): string[] {
+  // 有空格的语言（英语等）：按词切
+  if (sentence.includes(" ")) return sentence.split(/\s+/).filter(Boolean);
+  const cuts = /[가-힣]/.test(sentence) ? KO_CUTS : JA_CUTS;
+  const chars = [...sentence];
+  const tiles: string[] = [];
+  let cur = "";
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i]!;
+    if (ch === " " && cur.trim().length === 0) continue; // 块首空格跳过
+    cur += ch;
+    const rest = sentence.slice(i + 1);
+    const hit = cuts.find((p) => rest.startsWith(p));
+    if (hit && cur.trim().length >= 2) {
+      cur += hit;
+      i += hit.length;
+      tiles.push(cur.trim());
+      cur = "";
+    } else if (/[。？！?!]/.test(ch)) {
+      if (cur.trim()) tiles.push(cur.trim());
+      cur = "";
+    }
+  }
+  if (cur.trim()) tiles.push(cur.trim());
+  // 纯标点块并入前块（避免「。」单独成块）
+  for (let i = 0; i < tiles.length; i++) {
+    if (/^[。？！?!]+$/.test(tiles[i]!) && i > 0) {
+      tiles[i - 1] = tiles[i - 1]! + tiles[i]!;
+      tiles.splice(i, 1);
+      i--;
+    }
+  }
+  return tiles;
+}
+
+/** 生成一套混合练习（跟读×2 选择×2 判断×2 完形×2 造句×1 连线×1 = 10 题） */
+export function unitExercises(challengeId: string): Exercise[] {
+  const unitId = challengeId.replace(/-(words|dialogue)$/, "");
+  const unit = getUnit(unitId);
+  if (!unit) throw new Error("课程单元不存在");
+  const rand = seededRandom(challengeId);
+  const words = unit.words;
+  const out: Exercise[] = [];
+
+  // 跟读 ×2
+  for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
+    out.push({ type: "read", wordIndex: wi, word: words[wi]!.term, display: `${words[wi]!.term}${words[wi]!.reading ? `（${words[wi]!.reading}）` : ""} · ${words[wi]!.meaning}` });
+  }
+  // 选择 ×2：词→义
+  for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
+    const distractors = shuffled(words.filter((_, j) => j !== wi).map((w) => w.meaning), rand).slice(0, 3);
+    out.push({ type: "mc", prompt: `「${words[wi]!.term}」的意思是？`, options: shuffled([words[wi]!.meaning, ...distractors], rand), wordIndex: wi });
+  }
+  // 判断 ×2：一半正确一半张冠李戴
+  for (let k = 0; k < 2; k++) {
+    const wi = Math.floor(rand() * words.length);
+    const truthful = rand() > 0.5;
+    const other = words[(wi + 1 + Math.floor(rand() * (words.length - 1))) % words.length]!;
+    const shown = truthful ? words[wi]!.meaning : other.meaning;
+    out.push({ type: "tf", prompt: `「${words[wi]!.term}」的意思是「${shown}」？`, wordIndex: wi, shown });
+  }
+  // 完形填空 ×2：该词的例句挖空
+  const withExample = shuffled(words.map((_, i) => i).filter((i) => words[i]!.example.includes(words[i]!.term)), rand).slice(0, 2);
+  for (const wi of withExample) {
+    const w = words[wi]!;
+    const distractors = shuffled(words.filter((x) => x.term !== w.term).map((x) => x.term), rand).slice(0, 3);
+    out.push({ type: "cloze", sentence: w.example.replace(w.term, "____"), options: shuffled([w.term, ...distractors], rand), wordIndex: wi });
+  }
+  // 造句 ×1：例句切词块排序
+  const pIdx = Math.floor(rand() * unit.patterns.length);
+  const pat = unit.patterns[pIdx]!;
+  const tiles = shuffled(splitTiles(pat.example), rand);
+  out.push({ type: "build", tiles, hint: pat.exampleZh, sentence: pat.example });
+  // 连线 ×1：4 对词↔义
+  const pairs = shuffled(words.map((_, i) => i), rand).slice(0, 4);
+  out.push({ type: "match", left: pairs.map((i) => words[i]!.term), right: shuffled(pairs.map((i) => words[i]!.meaning), rand), wordIndices: pairs });
+
+  return shuffled(out, rand);
+}
+
+/** 判题：按题型重算正确答案（答案不发给客户端） */
+export function checkExercise(challengeId: string, index: number, answer: unknown): CheckResult {
+  const exercises = unitExercises(challengeId);
+  const ex = exercises[index];
+  if (!ex) throw new Error("题目序号越界");
+  const unitId = challengeId.replace(/-(words|dialogue)$/, "");
+  const unit = getUnit(unitId)!;
+  switch (ex.type) {
+    case "mc": {
+      const correct = unit.words[ex.wordIndex]!.meaning;
+      return { ok: answer === correct, correct };
+    }
+    case "tf": {
+      const truthful = unit.words[ex.wordIndex]!.meaning === ex.shown;
+      return { ok: answer === truthful, correct: truthful ? "✓ 对" : "✗ 错" };
+    }
+    case "cloze": {
+      const correct = unit.words[ex.wordIndex]!.term;
+      return { ok: normEx(String(answer)) === normEx(correct), correct };
+    }
+    case "build": {
+      const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);
+      return { ok, correct: ex.sentence };
+    }
+    case "match": {
+      const mapping = answer as number[];
+      const ok = ex.left.every((_, li) => {
+        const correctRi = ex.right.findIndex((r) => r === unit.words[ex.wordIndices[li]!]!.meaning);
+        return mapping[li] === correctRi;
+      });
+      return { ok };
+    }
+    default:
+      return { ok: false };
+  }
+}
+
+/** 按单元 id 取课程单元（混合练习出题用） */
+export function getUnit(unitId: string): CurriculumUnit | undefined {
+  for (const c of CURRICULA) {
+    const u = c.units.find((x) => x.id === unitId);
+    if (u) return u;
+  }
+  return undefined;
 }
 
 /** 课程元信息（供展示） */
