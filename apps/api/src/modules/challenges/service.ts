@@ -3,7 +3,7 @@
  * 奖励走钱包 grant（幂等键 challenge:<id>），过关记录一次性（user_challenges 主键约束）
  */
 import type { Challenge, Exercise, CheckResult } from "../../content/challenges.js";
-import { getChallenge, unitExercises, checkExercise } from "../../content/challenges.js";
+import { getChallenge, getUnit, unitExercises, checkExercise, checkPair } from "../../content/challenges.js";
 import type { TargetLang } from "../../content/scenarios.js";
 
 export interface ChallengeProgress {
@@ -101,6 +101,11 @@ export class ChallengeService {
     return checkExercise(challengeId, index, answer);
   }
 
+  /** 连线逐对判定 */
+  pair(challengeId: string, index: number, left: number, right: number): { ok: boolean } {
+    return checkPair(challengeId, index, left, right);
+  }
+
   async list(userId: string, lang: TargetLang, all: Challenge[]): Promise<ChallengeProgress[]> {
     const completed = await this.deps.repo.listCompleted(userId);
     const out: ChallengeProgress[] = [];
@@ -150,7 +155,7 @@ export class ChallengeService {
   }
 
   /** 单词判定：一次一个词，客户端逐词上传（游戏化节奏，即时反馈） */
-  async verifyWord(userId: string, challengeId: string, index: number, audioBase64: string): Promise<{ ok: boolean; transcript: string }> {
+  async verifyWord(userId: string, challengeId: string, index: number, audioBase64: string): Promise<{ ok: boolean; transcript: string; why?: string }> {
     const c = getChallenge(challengeId);
     if (!c || c.tier !== "beginner" || !c.words) throw new Error("挑战不存在或不支持跟读");
     const word = c.words[index];
@@ -159,7 +164,12 @@ export class ChallengeService {
     const norm = (v: string): string => v.toLowerCase().replace(/\s/g, "");
     const t = norm(transcript);
     const ok = word.accept.some((a) => t.includes(norm(a)));
-    return { ok, transcript };
+    const unit = getUnit(challengeId.replace(/-(words|dialogue)$/, ""));
+    const cw = unit?.words[index];
+    const why = cw ? `「${cw.term}」＝ ${cw.meaning}${cw.example ? `。例句：${cw.example}（${cw.exampleZh}）` : ""}` : undefined;
+    const res: { ok: boolean; transcript: string; why?: string } = { ok, transcript };
+    if (why) res.why = why;
+    return res;
   }
 
   /** 初级过关领取（客户端在 matched ≥ 门槛后调用） */

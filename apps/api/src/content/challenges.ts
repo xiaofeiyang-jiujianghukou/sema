@@ -138,6 +138,8 @@ export interface CheckResult {
   ok: boolean;
   /** 判错时给出正确答案（学习反馈） */
   correct?: string;
+  /** 无论对错都给「为什么」——教学解释 */
+  why?: string;
 }
 
 const normEx = (v: string): string => v.toLowerCase().replace(/[\s.,!?、。！？，]/g, "");
@@ -192,15 +194,11 @@ export function splitTiles(sentence: string): string[] {
     }
   }
   if (cur.trim()) tiles.push(cur.trim());
-  // 纯标点块并入前块（避免「。」单独成块）
-  for (let i = 0; i < tiles.length; i++) {
-    if (/^[。？！?!]+$/.test(tiles[i]!) && i > 0) {
-      tiles[i - 1] = tiles[i - 1]! + tiles[i]!;
-      tiles.splice(i, 1);
-      i--;
-    }
-  }
-  return tiles;
+  // 标点彻底移除：判分按去标点拼接比较，标点块只会是送分作弊块
+  const cleaned = tiles
+    .map((t) => t.replace(/[。？！?!.,、]/g, "").trim())
+    .filter((t) => t.length > 0);
+  return cleaned;
 }
 
 /** 生成一套混合练习（跟读×2 选择×2 判断×2 完形×2 造句×1 连线×1 = 10 题） */
@@ -229,12 +227,23 @@ export function unitExercises(challengeId: string): Exercise[] {
     const shown = truthful ? words[wi]!.meaning : other.meaning;
     out.push({ type: "tf", prompt: `「${words[wi]!.term}」的意思是「${shown}」？`, wordIndex: wi, shown });
   }
-  // 完形填空 ×2：该词的例句挖空
-  const withExample = shuffled(words.map((_, i) => i).filter((i) => words[i]!.example.includes(words[i]!.term)), rand).slice(0, 2);
-  for (const wi of withExample) {
+  // 完形填空 ×2：该词的例句挖空——数字词排除（It is _ o'clock 等空位多解，
+  // 强迫唯一答案会是坏题）；候选不足用补充选择题（词↔义）填位
+  const isNumberWord = (m: string): boolean => /[0-9０-９]/.test(m) || /^[一二三四五六七八九十百千两]/.test(m.trim());
+  const mcUsed = new Set(out.filter((e) => e.type === "mc").map((e) => (e as { wordIndex: number }).wordIndex));
+  const clozePool = shuffled(words.map((_, i) => i).filter((i) => words[i]!.example.includes(words[i]!.term) && !isNumberWord(words[i]!.meaning)), rand);
+  const clozeCount = Math.min(2, clozePool.length);
+  for (const wi of clozePool.slice(0, clozeCount)) {
+    mcUsed.add(wi);
     const w = words[wi]!;
     const distractors = shuffled(words.filter((x) => x.term !== w.term).map((x) => x.term), rand).slice(0, 3);
     out.push({ type: "cloze", sentence: w.example.replace(w.term, "____"), options: shuffled([w.term, ...distractors], rand), wordIndex: wi });
+  }
+  const needMc = 2 - clozeCount;
+  const mcExtras = shuffled(words.map((_, i) => i).filter((i) => !mcUsed.has(i)), rand).slice(0, needMc);
+  for (const wi of mcExtras) {
+    const distractors = shuffled(words.filter((_, j) => j !== wi).map((w) => w.meaning), rand).slice(0, 3);
+    out.push({ type: "mc", prompt: `「${words[wi]!.term}」的意思是？`, options: shuffled([words[wi]!.meaning, ...distractors], rand), wordIndex: wi });
   }
   // 造句 ×1：例句切词块排序
   const pIdx = Math.floor(rand() * unit.patterns.length);
@@ -257,20 +266,22 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
   const unit = getUnit(unitId)!;
   switch (ex.type) {
     case "mc": {
-      const correct = unit.words[ex.wordIndex]!.meaning;
-      return { ok: answer === correct, correct };
+      const w = unit.words[ex.wordIndex]!;
+      return { ok: answer === w.meaning, correct: w.meaning, why: `「${w.term}」＝ ${w.meaning}${w.reading ? `（${w.reading}）` : ""}` };
     }
     case "tf": {
-      const truthful = unit.words[ex.wordIndex]!.meaning === ex.shown;
-      return { ok: answer === truthful, correct: truthful ? "✓ 对" : "✗ 错" };
+      const w = unit.words[ex.wordIndex]!;
+      const truthful = w.meaning === ex.shown;
+      return { ok: answer === truthful, why: truthful ? `「${w.term}」就是「${w.meaning}」——题目说法正确` : `「${w.term}」其实是「${w.meaning}」，不是「${ex.shown}」` };
     }
     case "cloze": {
-      const correct = unit.words[ex.wordIndex]!.term;
-      return { ok: normEx(String(answer)) === normEx(correct), correct };
+      const w = unit.words[ex.wordIndex]!;
+      const ok = normEx(String(answer)) === normEx(w.term);
+      return { ok, correct: w.term, why: `完整句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
       const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);
-      return { ok, correct: ex.sentence };
+      return { ok, correct: ex.sentence, why: `原句：${ex.sentence}（${ex.hint}）` };
     }
     case "match": {
       const mapping = answer as number[];
@@ -278,11 +289,22 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
         const correctRi = ex.right.findIndex((r) => r === unit.words[ex.wordIndices[li]!]!.meaning);
         return mapping[li] === correctRi;
       });
-      return { ok };
+      return { ok, why: ex.left.map((l, li) => `${l}＝${unit.words[ex.wordIndices[li]!]!.meaning}`).join("；") };
     }
     default:
       return { ok: false };
   }
+}
+
+/** 连线逐对判定：left/right 为题目内下标；正确→锁定，错误→❗重选 */
+export function checkPair(challengeId: string, index: number, left: number, right: number): CheckResult {
+  const exercises = unitExercises(challengeId);
+  const ex = exercises[index];
+  if (!ex || ex.type !== "match") throw new Error("该题不是连线题");
+  const unitId = challengeId.replace(/-(words|dialogue)$/, "");
+  const unit = getUnit(unitId)!;
+  const leftWord = unit.words[ex.wordIndices[left]!];
+  return { ok: ex.right[right] === leftWord!.meaning, why: `「${leftWord!.term}」＝ ${leftWord!.meaning}` };
 }
 
 /** 按单元 id 取课程单元（混合练习出题用） */

@@ -250,17 +250,23 @@ export const api = {
       { method: "POST", token, body: JSON.stringify({ audioBase64 }) },
     ),
   challengeWord: (token: string, id: string, index: number, audioBase64: string) =>
-    request<{ ok: boolean; transcript: string }>(
+    request<{ ok: boolean; transcript: string; why?: string }>(
       `/v1/challenges/${id}/word`,
       { method: "POST", token, body: JSON.stringify({ audioBase64, index }) },
     ),
   challengeExercises: (token: string, id: string) =>
     request<{ exercises: import("./api.exercises").Exercise[] }>(`/v1/challenges/${id}/exercises`, { token }),
   challengeCheck: (token: string, id: string, index: number, answer: unknown) =>
-    request<{ ok: boolean; correct?: string }>(`/v1/challenges/${id}/check`, {
+    request<{ ok: boolean; correct?: string; why?: string }>(`/v1/challenges/${id}/check`, {
       method: "POST",
       token,
       body: JSON.stringify({ index, answer }),
+    }),
+  challengeCheckPair: (token: string, id: string, index: number, left: number, right: number) =>
+    request<{ ok: boolean }>(`/v1/challenges/${id}/check-pair`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ index, left, right }),
     }),
   challengeClaim: (token: string, id: string, matched: number) =>
     request<{ rewardedCents: number; alreadyDone: boolean; balanceCredits: string }>(

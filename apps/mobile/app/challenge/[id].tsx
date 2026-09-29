@@ -29,14 +29,15 @@ export default function ChallengePlay(): JSX.Element {
   const [exIdx, setExIdx] = useState(0);
   const [hits, setHits] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [feedback, setFeedback] = useState<null | { ok: boolean; correct?: string }>(null);
+  const [feedback, setFeedback] = useState<null | { ok: boolean; correct?: string; why?: string }>(null);
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState<null | { rewardCents: number; balance: string }>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   // 造句 / 连线 本地选择状态
   const [buildOrder, setBuildOrder] = useState<number[]>([]);
-  const [matchSel, setMatchSel] = useState<{ left: number; right: number } | null>(null);
-  const [matchMap, setMatchMap] = useState<Record<number, number>>({});
+  const [matchSel, setMatchSel] = useState<number | null>(null);
+  const [matchLocked, setMatchLocked] = useState<Record<number, number>>({});
+  const [matchWrong, setMatchWrong] = useState<number | null>(null);
 
   useEffect(() => {
     if (!token || !id) return;
@@ -61,8 +62,9 @@ export default function ChallengePlay(): JSX.Element {
     setExIdx((i) => i + 1);
     setFeedback(null);
     setBuildOrder([]);
-    setMatchMap({});
+    setMatchLocked({});
     setMatchSel(null);
+    setMatchWrong(null);
   }, []);
 
   const submit = useCallback(async (answer: unknown): Promise<void> => {
@@ -87,6 +89,39 @@ export default function ChallengePlay(): JSX.Element {
     }
   }, [token, id, busy, feedback, exIdx, hits, challenge, nextExercise]);
 
+  // ══ 连线：逐对判定（对→灰锁；错→❗闪后重选） ══
+  const tapLeft = useCallback((li: number): void => {
+    if (matchLocked[li] !== undefined) return; // 已锁定不可再选
+    setMatchSel((cur) => (cur === li ? null : li));
+  }, [matchLocked]);
+
+  const tapRight = useCallback(async (ri: number): Promise<void> => {
+    if (!token || !id || matchSel === null || busy) return;
+    if (Object.values(matchLocked).includes(ri)) return; // 已被正确配对占用的右侧
+    setBusy(true);
+    try {
+      const res = await api.challengeCheckPair(token, id, exIdx, matchSel, ri);
+      if (res.ok) {
+        const locked = { ...matchLocked, [matchSel]: ri };
+        setMatchLocked(locked);
+        setMatchSel(null);
+        // 全部配对成功 → 本题完成
+        const ex = exercises?.[exIdx];
+        if (ex && ex.type === "match" && Object.keys(locked).length === ex.left.length) {
+          await submit(ex.left.map((_, li) => locked[li] ?? -1));
+        }
+      } else {
+        setMatchWrong(matchSel); // ❗ 闪在左边（选错来源）
+        setTimeout(() => setMatchWrong(null), 700);
+        setMatchSel(null);
+      }
+    } catch (err) {
+      Alert.alert("判定失败", err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [token, id, matchSel, busy, matchLocked, exercises, exIdx, submit]);
+
   // ══ 跟读题：录音 → 单词判定 ══
   const readWord = useCallback(async (): Promise<void> => {
     if (!token || !id || busy || feedback) return;
@@ -108,7 +143,7 @@ export default function ChallengePlay(): JSX.Element {
       setRecording(null);
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const res = await api.challengeWord(token, id, ex.wordIndex, base64);
-      setFeedback({ ok: res.ok, correct: res.ok ? undefined : `听成了「${res.transcript}」` });
+      setFeedback({ ok: res.ok, correct: res.ok ? undefined : `听成了「${res.transcript}」`, why: res.why });
       if (res.ok) {
         const newHits = hits + 1;
         if (challenge && newHits >= challenge.requiredTurns) {
@@ -177,7 +212,7 @@ export default function ChallengePlay(): JSX.Element {
         <Text style={styles.partyTitle}>还差一点！</Text>
         <Text style={styles.partyBalance}>答对 {hits}/{challenge.requiredTurns}，再来一轮（题目会重新洗牌顺序）</Text>
         <Pressable style={styles.bigBtn} onPress={() => {
-          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setBuildOrder([]); setMatchMap({}); setMatchSel(null);
+          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setBuildOrder([]); setMatchLocked({}); setMatchSel(null);
           void (async () => {
             if (!token || !id) return;
             const ex2 = await api.challengeExercises(token, id);
@@ -258,21 +293,38 @@ export default function ChallengePlay(): JSX.Element {
             <View style={styles.matchRow}>
               <View style={styles.matchCol}>
                 {ex.left.map((l, li) => (
-                  <Pressable key={li} style={[styles.matchItem, matchSel?.left === li && styles.matchItemSel, matchMap[li] !== undefined && styles.matchItemDone]} onPress={() => setMatchSel({ left: li, right: -1 })}>
-                    <Text style={styles.matchText}>{l}</Text>
+                  <Pressable
+                    key={li}
+                    style={[
+                      styles.matchItem,
+                      matchSel === li && styles.matchItemSel,
+                      matchLocked[li] !== undefined && styles.matchItemLocked,
+                      matchWrong === li && styles.matchItemWrong,
+                    ]}
+                    onPress={() => tapLeft(li)}
+                  >
+                    <Text style={styles.matchText}>{matchWrong === li ? "❗ " : ""}{l}</Text>
                   </Pressable>
                 ))}
               </View>
               <View style={styles.matchCol}>
-                {ex.right.map((r, ri) => (
-                  <Pressable key={ri} style={[styles.matchItem, matchMap[matchSel?.left ?? -1] === ri && styles.matchItemSel]} onPress={() => {
-                    if (!matchSel) return;
-                    setMatchMap((m) => ({ ...m, [matchSel.left]: ri }));
-                    setMatchSel(null);
-                  }}>
-                    <Text style={styles.matchText}>{r}</Text>
-                  </Pressable>
-                ))}
+                {ex.right.map((r, ri) => {
+                  const lockedBy = Object.entries(matchLocked).find(([, v]) => v === ri);
+                  return (
+                    <Pressable
+                      key={ri}
+                      style={[
+                        styles.matchItem,
+                        matchSel !== null && matchLocked[matchSel] === undefined && styles.matchItemSel,
+                        lockedBy !== undefined && styles.matchItemLocked,
+                        matchWrong !== null && styles.matchItemWrongHint,
+                      ]}
+                      onPress={() => void tapRight(ri)}
+                    >
+                      <Text style={styles.matchText}>{lockedBy !== undefined ? "" : r}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -281,8 +333,11 @@ export default function ChallengePlay(): JSX.Element {
         {feedback && (
           <View style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackMiss]}>
             <Text style={feedback.ok ? styles.feedbackOkText : styles.feedbackMissText}>
-              {feedback.ok ? "✅ 过！" : `❌ ${feedback.correct ? `正确：${feedback.correct}` : "再想想"}`}
+              {feedback.ok ? `✅ 对！` : `❌ ${feedback.correct ? `正确：${feedback.correct}` : "再想想"}`}
             </Text>
+            {feedback.why && (
+              <Text style={styles.whyText}>{feedback.why}</Text>
+            )}
           </View>
         )}
       </ScrollView>
@@ -327,9 +382,7 @@ export default function ChallengePlay(): JSX.Element {
         </Pressable>
       )}
       {ex.type === "match" && (
-        <Pressable style={[styles.micBtn, (busy || !!feedback) && styles.micBtnBusy]} disabled={busy || !!feedback || Object.keys(matchMap).length < ex.left.length} onPress={() => void submit(ex.left.map((_, li) => matchMap[li] ?? -1))}>
-          <Text style={styles.micText}>完成连线</Text>
-        </Pressable>
+        <Text style={styles.footnote}>全部配对正确后自动进入下一题</Text>
       )}
       {feedback && !feedback.ok && (
         <Pressable style={styles.nextBtn} onPress={() => nextExercise(false)}>
@@ -376,13 +429,16 @@ const styles = StyleSheet.create({
   matchCol: { flex: 1, gap: 8 },
   matchItem: { borderRadius: 10, borderWidth: 1, borderColor: "#2a4a66", backgroundColor: "#0d2233", paddingVertical: 10, paddingHorizontal: 8, alignItems: "center" },
   matchItemSel: { borderColor: "#4da3ff", backgroundColor: "#153a5c" },
-  matchItemDone: { opacity: 0.45 },
+  matchItemLocked: { opacity: 0.3, borderColor: "#3a6b8f" },
+  matchItemWrong: { borderColor: "#e05555", backgroundColor: "#2b1414" },
+  matchItemWrongHint: { opacity: 0.9 },
   matchText: { color: "#f2f7fa", fontSize: 13, textAlign: "center" },
   feedback: { borderRadius: 12, padding: 12 },
   feedbackOk: { backgroundColor: "#0f2b22" },
   feedbackMiss: { backgroundColor: "#2b1414" },
   feedbackOkText: { color: "#7ee2a8", fontSize: 15, fontWeight: "700" },
   feedbackMissText: { color: "#e08f8f", fontSize: 14 },
+  whyText: { color: "#9fb8c9", fontSize: 13, lineHeight: 19, marginTop: 4 },
   micBtn: { backgroundColor: "#1a73e8", borderRadius: 16, paddingVertical: 18, alignItems: "center" },
   micBtnRec: { backgroundColor: "#e05555" },
   micBtnBusy: { opacity: 0.6 },

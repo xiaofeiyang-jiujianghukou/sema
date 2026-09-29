@@ -60,6 +60,23 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** 连线逐对判定（对→锁定；错→❗重选） */
+  app.post("/:id/check-pair", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const parsed = z.object({
+      index: z.number().int().min(0).max(49),
+      left: z.number().int().min(0).max(9),
+      right: z.number().int().min(0).max(9),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
+    try {
+      const { index, left, right } = parsed.data;
+      return app.challenges.pair((req.params as { id: string }).id, index, left, right);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : "判定失败" });
+    }
+  });
+
   /** 单词判定：一次一个词（游戏化即时反馈） */
   app.post("/:id/word", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
