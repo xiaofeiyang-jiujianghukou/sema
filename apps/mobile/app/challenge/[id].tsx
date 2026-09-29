@@ -211,7 +211,8 @@ export default function ChallengePlay(): JSX.Element {
       try { await soundRef.current?.stopAsync(); } catch { /* 已停止 */ }
       try { await soundRef.current?.unloadAsync(); } catch { /* 已释放 */ }
       soundRef.current = null;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, shouldDuckAndroid: true, playThroughEarpieceAndroid: false });
+      // 不调 setAudioModeAsync：b34 实测直接 createAsync 能正常采音，
+      // 全局模式切换在安卓 Expo Go 上会把录音会话打静音（诊断 rmsRaw=0）
       const { recording: rec } = await Audio.Recording.createAsync(REC);
       setRecording(rec);
       setFeedback(null);
@@ -249,7 +250,6 @@ export default function ChallengePlay(): JSX.Element {
   const playAudio = useCallback(async (wordIndex: number, sentence: boolean): Promise<void> => {
     if (!token || !id) return;
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false, playThroughEarpieceAndroid: false });
       const res = await api.challengeAudio(token, id, wordIndex, sentence);
       await soundRef.current?.unloadAsync();
       const { sound: snd } = await Audio.Sound.createAsync({ uri: `data:audio/mpeg;base64,${res.audioBase64}` });
