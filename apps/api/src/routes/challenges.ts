@@ -38,6 +38,21 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** 单词判定：一次一个词（游戏化即时反馈） */
+  app.post("/:id/word", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const parsed = z.object({
+      audioBase64: z.string().min(64).max(2_000_000),
+      index: z.number().int().min(0).max(49),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
+    try {
+      return await app.challenges.verifyWord(req.userId, (req.params as { id: string }).id, parsed.data.index, parsed.data.audioBase64);
+    } catch (err) {
+      return reply.code(400).send({ error: err instanceof Error ? err.message : "判定失败" });
+    }
+  });
+
   /** 初级过关领取（matched ≥ 门槛后） */
   app.post("/:id/claim", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });

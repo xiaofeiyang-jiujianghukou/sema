@@ -1,45 +1,38 @@
 import type { JSX } from "react";
 /**
- * 闯关详情：初级=跟读判定（录音上传→ASR 匹配→领取奖励）；
- * 中级/高级=引导去对话，对话结束自动按轮数判定
+ * 闯关进行中：游戏化一关一分钟
+ * 跟读关 = 一次一个词 → 点话筒 → 说 → 秒出对错 → 自动下一个；达标自动发奖
+ * 对话关 = 一个按钮进对话，结束自动判定
  */
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import { ApiError, api, type ChallengeProgress } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
-const RECORDING_OPTIONS: Audio.RecordingOptions = {
-  android: {
-    extension: ".aac",
-    outputFormat: Audio.AndroidOutputFormat.AAC_ADTS,
-    audioEncoder: Audio.AndroidAudioEncoder.AAC,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 48000,
-  },
-  ios: {
-    extension: ".aac",
-    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-    audioQuality: Audio.IOSAudioQuality.MEDIUM,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 48000,
-  },
+const REC: Audio.RecordingOptions = {
+  android: { extension: ".aac", outputFormat: Audio.AndroidOutputFormat.AAC_ADTS, audioEncoder: Audio.AndroidAudioEncoder.AAC, sampleRate: 16000, numberOfChannels: 1, bitRate: 48000 },
+  ios: { extension: ".aac", outputFormat: Audio.IOSOutputFormat.MPEG4AAC, audioQuality: Audio.IOSAudioQuality.MEDIUM, sampleRate: 16000, numberOfChannels: 1, bitRate: 48000 },
   web: {},
 };
 
-export default function ChallengeDetail(): JSX.Element {
+export default function ChallengePlay(): JSX.Element {
   const router = useRouter();
   const { token } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [challenge, setChallenge] = useState<ChallengeProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [verdict, setVerdict] = useState<{ text: string; display: string; ok: boolean }[] | null>(null);
+
+  // 跟读关状态
+  const [idx, setIdx] = useState(0);
+  const [hits, setHits] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [lastVerdict, setLastVerdict] = useState<null | { ok: boolean; transcript: string }>(null);
   const [busy, setBusy] = useState(false);
+  const [finished, setFinished] = useState<null | { rewardCents: number; balance: string }>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   useEffect(() => {
     if (!token || !id) return;
@@ -51,71 +44,76 @@ export default function ChallengeDetail(): JSX.Element {
       .finally(() => setLoading(false));
   }, [token, id]);
 
-  const recordOnce = useCallback(async (): Promise<void> => {
-    if (!token || !challenge || busy) return;
+  const finish = useCallback(async (totalHits: number): Promise<void> => {
+    if (!token || !challenge) return;
+    try {
+      const res = await api.challengeClaim(token, challenge.id, totalHits);
+      setFinished({ rewardCents: res.rewardedCents, balance: res.balanceCredits });
+    } catch (err) {
+      Alert.alert("领取失败", err instanceof ApiError ? err.message : String(err));
+    }
+  }, [token, challenge]);
+
+  const sayWord = useCallback(async (): Promise<void> => {
+    if (!token || !challenge || busy || finished || !challenge.words) return;
     setBusy(true);
     try {
       await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const rec = recording ?? (await Audio.Recording.createAsync(RECORDING_OPTIONS)).recording;
-      if (!recording) setRecording(rec);
-      // 按住 3 秒节奏改为：开始录音后由「停止并判定」按钮收尾
+      const { recording: rec } = await Audio.Recording.createAsync(REC);
       setRecording(rec);
+      setLastVerdict(null);
     } catch (err) {
       Alert.alert("录音失败", err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [token, challenge, busy, recording]);
+  }, [token, challenge, busy, finished]);
 
-  const stopAndJudge = useCallback(async (): Promise<void> => {
-    if (!token || !challenge || !recording || busy) return;
+  const judge = useCallback(async (): Promise<void> => {
+    if (!token || !challenge || !recording || busy || finished || !challenge.words) return;
     setBusy(true);
     try {
-      await new Promise<void>((resolve) => setTimeout(resolve, 400)); // 收尾编码器缓冲
+      await new Promise<void>((resolve) => setTimeout(resolve, 350)); // 收尾编码器缓冲
       const uri = recording.getURI() ?? "";
       await recording.stopAndUnloadAsync();
       setRecording(null);
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const res = await api.challengeVoice(token, challenge.id, base64);
-      setVerdict(res.results);
-      if (res.matched < res.threshold) {
-        Alert.alert("差一点！", `读对了 ${res.matched}/${res.results.length}，还需要 ${res.threshold - res.matched} 个。再试一次！`);
+      const res = await api.challengeWord(token, challenge.id, idx, base64);
+      setLastVerdict(res);
+      if (res.ok) {
+        const newHits = hits + 1;
+        setHits(newHits);
+        setStreak((n) => n + 1);
+        if (newHits >= challenge.requiredTurns) {
+          await finish(newHits);
+          return;
+        }
+        setIdx((i) => Math.min(i + 1, challenge.words!.length - 1));
+      } else {
+        setStreak(0);
       }
     } catch (err) {
       Alert.alert("判定失败", err instanceof ApiError ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [token, challenge, recording, busy]);
+  }, [token, challenge, recording, busy, finished, idx, hits, finish]);
 
-  const claim = useCallback(async (): Promise<void> => {
-    if (!token || !challenge || !verdict || busy) return;
-    const matched = verdict.filter((v) => v.ok).length;
-    setBusy(true);
-    try {
-      const res = await api.challengeClaim(token, challenge.id, matched);
-      Alert.alert("🎉 闯关成功", `奖励 ${res.rewardedCents} 厘已入账\n余额：${res.balanceCredits} 积分`, [
-        { text: "好的", onPress: () => router.back() },
-      ]);
-    } catch (err) {
-      Alert.alert("领取失败", err instanceof ApiError ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [token, challenge, verdict, busy, router]);
+  const skip = useCallback((): void => {
+    if (!challenge?.words) return;
+    setStreak(0);
+    setIdx((i) => Math.min(i + 1, challenge.words!.length - 1));
+    setLastVerdict(null);
+  }, [challenge]);
 
   const startConversation = useCallback(async (): Promise<void> => {
     if (!token || !challenge) return;
     try {
       if (challenge.scenarioId) {
         const started = await api.startConversation(token, challenge.scenarioId);
-        router.push({
-          pathname: "/chat/[id]",
-          params: { id: started.sessionId, opener: started.opener, title: started.scenario.title, scenarioId: challenge.scenarioId },
-        });
+        router.push({ pathname: "/chat/[id]", params: { id: started.sessionId, opener: started.opener, title: started.scenario.title, scenarioId: challenge.scenarioId } });
       } else {
-        router.push("/scenarios"); // 高级：任意情景皆可
+        router.push("/scenarios");
       }
     } catch (err) {
       Alert.alert("开启失败", err instanceof ApiError ? err.message : String(err));
@@ -126,66 +124,107 @@ export default function ChallengeDetail(): JSX.Element {
     return <View style={styles.center}><ActivityIndicator color="#8fd3ff" /></View>;
   }
 
-  const matched = verdict?.filter((v) => v.ok).length ?? 0;
+  // ══ 过关庆祝页 ══
+  if (finished) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.party}>🎉</Text>
+        <Text style={styles.partyTitle}>闯关成功！</Text>
+        <Text style={styles.partyReward}>+{finished.rewardCents} 厘已入账</Text>
+        <Text style={styles.partyBalance}>余额 {finished.balance} 积分</Text>
+        <Pressable style={styles.bigBtn} onPress={() => router.back()}>
+          <Text style={styles.bigBtnText}>继续下一关 →</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ══ 对话应用关 ══
+  if (!challenge.words) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.dialogueGoal}>🎯 {challenge.description}</Text>
+        <Pressable style={styles.bigBtn} onPress={() => void startConversation()}>
+          <Text style={styles.bigBtnText}>开始对话</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ══ 跟读关：一次一个词 ══
+  const word = challenge.words[idx]!;
+  const total = challenge.words.length;
+  const need = challenge.requiredTurns;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
-      <Text style={styles.title}>{challenge.title}</Text>
-      <Text style={styles.desc}>{challenge.description}</Text>
-      <View style={styles.rewardCard}>
-        <Text style={styles.rewardText}>过关奖励 +{challenge.rewardCents} 厘</Text>
+    <View style={styles.container}>
+      {/* 进度：达标数 + 连击 */}
+      <View style={styles.topRow}>
+        <Text style={styles.progressText}>{hits}/{need} 达标</Text>
+        {streak >= 2 && <Text style={styles.streak}>🔥 连对 {streak}</Text>}
+      </View>
+      <View style={styles.dots}>
+        {challenge.words.map((_, i) => (
+          <View key={i} style={[styles.dot, i < idx && styles.dotPast, i === idx && styles.dotNow]} />
+        ))}
       </View>
 
-      {challenge.words && (
-        <>
-          <Text style={styles.section}>按顺序朗读下面 {challenge.words.length} 个词（一次读完）</Text>
-          {challenge.words.map((w, i) => (
-            <View key={w.text} style={styles.wordRow}>
-              <Text style={styles.wordIndex}>{i + 1}</Text>
-              <Text style={styles.wordDisplay}>{w.display}</Text>
-              {verdict && <Text style={styles.wordVerdict}>{verdict[i]?.ok ? "✅" : "❌"}</Text>}
-            </View>
-          ))}
-          <Pressable
-            style={[styles.bigBtn, (busy || !!recording) && styles.bigBtnOff]}
-            disabled={busy}
-            onPress={() => (recording ? void stopAndJudge() : void recordOnce())}
-          >
-            <Text style={styles.bigBtnText}>
-              {recording ? "读完了 · 停止并判定" : busy ? "AI 听取中…" : "🎤 按下开始朗读"}
-            </Text>
-          </Pressable>
-          {verdict && matched >= challenge.requiredTurns && (
-            <Pressable style={[styles.bigBtn, styles.claimBtn]} disabled={busy} onPress={() => void claim()}>
-              <Text style={styles.bigBtnText}>🎉 领取奖励 +{challenge.rewardCents} 厘</Text>
-            </Pressable>
-          )}
-        </>
-      )}
+      {/* 词卡 */}
+      <View style={[styles.wordCard, lastVerdict && !lastVerdict.ok && styles.wordCardMiss]}>
+        <Text style={styles.wordTerm}>{word.text}</Text>
+        <Text style={styles.wordMeaning}>{word.display.split(" · ").slice(1).join(" · ")}</Text>
+        {lastVerdict && (
+          <Text style={lastVerdict.ok ? styles.verdictOk : styles.verdictMiss}>
+            {lastVerdict.ok ? "✅ 过！" : `❌ 听成了「${lastVerdict.transcript}」再说一次`}
+          </Text>
+        )}
+      </View>
 
-      {!challenge.words && (
-        <Pressable style={styles.bigBtn} disabled={busy} onPress={() => void startConversation()}>
-          <Text style={styles.bigBtnText}>💬 去对话（需 {challenge.requiredTurns} 轮，结束自动判定）</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+      {/* 主按钮：说 / 判定中 */}
+      <Pressable
+        style={[styles.micBtn, recording && styles.micBtnRec, busy && styles.micBtnBusy]}
+        disabled={busy}
+        onPress={() => (recording ? void judge() : void sayWord())}
+      >
+        <Text style={styles.micText}>
+          {busy ? "🤔 AI 听取中…" : recording ? "说完点这里" : "🎤 说这个词"}
+        </Text>
+      </Pressable>
+      <Pressable onPress={skip}>
+        <Text style={styles.skipText}>跳过这个词 →</Text>
+      </Pressable>
+      <Text style={styles.footnote}>共 {total} 词，达标 {need} 个即过关</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#081a2c" },
-  center: { flex: 1, backgroundColor: "#081a2c", alignItems: "center", justifyContent: "center" },
-  title: { color: "#f2f7fa", fontSize: 20, fontWeight: "700" },
-  desc: { color: "#7a92a8", fontSize: 13, lineHeight: 18 },
-  rewardCard: { backgroundColor: "#0f2b22", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#2a6e4a" },
-  rewardText: { color: "#7ee2a8", fontSize: 14, fontWeight: "700" },
-  section: { color: "#9fb8c9", fontSize: 13, marginTop: 6 },
-  wordRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#12314c", borderRadius: 10, padding: 12 },
-  wordIndex: { color: "#5f7d92", fontSize: 13, width: 18 },
-  wordDisplay: { color: "#f2f7fa", fontSize: 16, flex: 1 },
-  wordVerdict: { fontSize: 16 },
-  bigBtn: { backgroundColor: "#1a73e8", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  bigBtnOff: { opacity: 0.5 },
-  claimBtn: { backgroundColor: "#2a9d5c" },
-  bigBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  container: { flex: 1, backgroundColor: "#081a2c", padding: 20, paddingTop: 48, gap: 14 },
+  center: { flex: 1, backgroundColor: "#081a2c", alignItems: "center", justifyContent: "center", gap: 14, padding: 24 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  progressText: { color: "#f2f7fa", fontSize: 15, fontWeight: "700" },
+  streak: { color: "#ffb84d", fontSize: 14, fontWeight: "700" },
+  dots: { flexDirection: "row", gap: 5, flexWrap: "wrap" },
+  dot: { width: 18, height: 6, borderRadius: 3, backgroundColor: "#1f3d55" },
+  dotPast: { backgroundColor: "#3a6b8f" },
+  dotNow: { backgroundColor: "#4da3ff" },
+  wordCard: { flex: 1, backgroundColor: "#12314c", borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 12, borderWidth: 3, borderColor: "transparent" },
+  wordCardMiss: { borderColor: "#8f3a3a" },
+  wordTerm: { color: "#f2f7fa", fontSize: 44, fontWeight: "800" },
+  wordMeaning: { color: "#9fb8c9", fontSize: 16 },
+  verdictOk: { color: "#7ee2a8", fontSize: 15, fontWeight: "700" },
+  verdictMiss: { color: "#e08f8f", fontSize: 13, textAlign: "center", paddingHorizontal: 16 },
+  micBtn: { backgroundColor: "#1a73e8", borderRadius: 18, paddingVertical: 20, alignItems: "center" },
+  micBtnRec: { backgroundColor: "#e05555" },
+  micBtnBusy: { opacity: 0.6 },
+  micText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  skipText: { color: "#5f7d92", fontSize: 13, textAlign: "center" },
+  footnote: { color: "#5f7d92", fontSize: 11, textAlign: "center" },
+  party: { fontSize: 72 },
+  partyTitle: { color: "#f2f7fa", fontSize: 26, fontWeight: "800" },
+  partyReward: { color: "#7ee2a8", fontSize: 18, fontWeight: "700" },
+  partyBalance: { color: "#7a92a8", fontSize: 13 },
+  dialogueGoal: { color: "#f2f7fa", fontSize: 16, lineHeight: 24, textAlign: "center" },
+  bigBtn: { backgroundColor: "#1a73e8", borderRadius: 14, paddingVertical: 16, paddingHorizontal: 40, alignItems: "center" },
+  bigBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

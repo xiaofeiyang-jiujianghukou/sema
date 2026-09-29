@@ -78,20 +78,18 @@ export default function Course(): JSX.Element {
         </Pressable>
       </ScrollView>
 
-      {/* 课程进度 + 继续学习 */}
+      {/* 一键继续 */}
       {challenges && challenges.length > 0 && (
-        <View style={styles.progressCard}>
-          <Text style={styles.progressText}>
-            {LANGS[lang].course} 第一册 · 已过 {doneCount}/{challenges.length} 关
-          </Text>
-          {nextLesson ? (
-            <Pressable style={styles.continueBtn} onPress={() => router.push({ pathname: "/challenge/[id]", params: { id: nextLesson.id } })}>
-              <Text style={styles.continueText}>继续学习：{nextLesson.title}</Text>
-            </Pressable>
-          ) : (
-            <Text style={styles.progressText}>🎉 第一册全部通关！第二册筹备中</Text>
-          )}
-        </View>
+        nextLesson ? (
+          <Pressable style={styles.continueBtn} onPress={() => router.push({ pathname: "/challenge/[id]", params: { id: nextLesson.id } })}>
+            <Text style={styles.continueTitle}>{nextLesson.title}</Text>
+            <Text style={styles.continueSub}>已过 {doneCount}/{challenges.length} 关 · 点这里继续</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.progressCard}>
+            <Text style={styles.progressText}>🎉 第一册全部通关！</Text>
+          </View>
+        )
       )}
 
       {loading && <ActivityIndicator color="#8fd3ff" style={{ marginTop: 24 }} />}
@@ -114,10 +112,7 @@ export default function Course(): JSX.Element {
               }}
             >
               <Text style={styles.stateIcon}>{c.state === "completed" ? "✅" : c.state === "locked" ? "🔒" : "▶️"}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, c.state === "locked" && styles.dimText]}>{c.title}</Text>
-                <Text style={[styles.cardDesc, c.state === "locked" && styles.dimText]}>{c.description}</Text>
-              </View>
+              <Text style={[styles.cardTitle, c.state === "locked" && styles.dimText, { flex: 1 }]}>{c.title}</Text>
               <Text style={styles.reward}>+{c.rewardCents}厘</Text>
             </Pressable>
           </View>
@@ -125,11 +120,8 @@ export default function Course(): JSX.Element {
       })}
 
       <Pressable style={styles.browseBtn} onPress={() => router.push("/scenarios")}>
-        <Text style={styles.browseText}>自由练习（全部情景）→</Text>
+        <Text style={styles.browseText}>自由聊天 →</Text>
       </Pressable>
-      <Text style={styles.footnote}>
-        {level ? `你的水平：${LEVEL_LABEL[level] ?? level}——课程按大纲顺序推进，AI 辅助强度跟随水平` : "这门课还没定水平——去「我的」设置，AI 才好拿捏难度"}
-      </Text>
     </ScrollView>
   );
 }
@@ -147,8 +139,9 @@ const styles = StyleSheet.create({
   langLevel: { color: "#7ee2a8", fontSize: 10 },
   progressCard: { backgroundColor: "#12314c", borderRadius: 12, padding: 14, gap: 10 },
   progressText: { color: "#9fb8c9", fontSize: 13 },
-  continueBtn: { backgroundColor: "#1a73e8", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  continueText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  continueBtn: { backgroundColor: "#1a73e8", borderRadius: 16, paddingVertical: 22, alignItems: "center", gap: 4 },
+  continueTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  continueSub: { color: "#cfe4f7", fontSize: 12 },
   unitHeader: { marginTop: 8, paddingBottom: 6, borderBottomWidth: 1, borderColor: "#1f3d55" },
   unitTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "700" },
   card: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#12314c", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "transparent" },
@@ -156,10 +149,8 @@ const styles = StyleSheet.create({
   cardLocked: { opacity: 0.5 },
   stateIcon: { fontSize: 20 },
   cardTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "600" },
-  cardDesc: { color: "#7a92a8", fontSize: 11, marginTop: 2, lineHeight: 15 },
   dimText: { color: "#5f7d92" },
   reward: { color: "#7ee2a8", fontSize: 13, fontWeight: "700" },
   browseBtn: { alignItems: "center", paddingVertical: 12 },
   browseText: { color: "#4da3ff", fontSize: 13 },
-  footnote: { color: "#5f7d92", fontSize: 11, lineHeight: 16, textAlign: "center" },
 });

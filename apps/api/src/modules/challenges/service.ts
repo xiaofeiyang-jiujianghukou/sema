@@ -137,6 +137,19 @@ export class ChallengeService {
     return { results, matched, threshold: c.requiredTurns };
   }
 
+  /** 单词判定：一次一个词，客户端逐词上传（游戏化节奏，即时反馈） */
+  async verifyWord(userId: string, challengeId: string, index: number, audioBase64: string): Promise<{ ok: boolean; transcript: string }> {
+    const c = getChallenge(challengeId);
+    if (!c || c.tier !== "beginner" || !c.words) throw new Error("挑战不存在或不支持跟读");
+    const word = c.words[index];
+    if (!word) throw new Error("词序号越界");
+    const transcript = await this.deps.transcribe(audioBase64, c.lang);
+    const norm = (v: string): string => v.toLowerCase().replace(/\s/g, "");
+    const t = norm(transcript);
+    const ok = word.accept.some((a) => t.includes(norm(a)));
+    return { ok, transcript };
+  }
+
   /** 初级过关领取（客户端在 matched ≥ 门槛后调用） */
   async claimBeginner(userId: string, challengeId: string, matched: number, all: Challenge[]): Promise<{ rewardedCents: number; alreadyDone: boolean }> {
     const c = getChallenge(challengeId);

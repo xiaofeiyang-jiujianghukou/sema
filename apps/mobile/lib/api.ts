@@ -249,6 +249,11 @@ export const api = {
       `/v1/challenges/${id}/voice`,
       { method: "POST", token, body: JSON.stringify({ audioBase64 }) },
     ),
+  challengeWord: (token: string, id: string, index: number, audioBase64: string) =>
+    request<{ ok: boolean; transcript: string }>(
+      `/v1/challenges/${id}/word`,
+      { method: "POST", token, body: JSON.stringify({ audioBase64, index }) },
+    ),
   challengeClaim: (token: string, id: string, matched: number) =>
     request<{ rewardedCents: number; alreadyDone: boolean; balanceCredits: string }>(
       `/v1/challenges/${id}/claim`,
