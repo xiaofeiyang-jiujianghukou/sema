@@ -34,7 +34,6 @@ export default function ChallengePlay(): JSX.Element {
   const [finished, setFinished] = useState<null | { rewardCents: number; balance: string }>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   // 造句 / 连线 本地选择状态
-  const [buildOrder, setBuildOrder] = useState<number[]>([]);
   const [matchSel, setMatchSel] = useState<number | null>(null);
   const [matchLocked, setMatchLocked] = useState<Record<number, number>>({});
   const [matchWrong, setMatchWrong] = useState<number | null>(null);
@@ -61,7 +60,6 @@ export default function ChallengePlay(): JSX.Element {
     }
     setExIdx((i) => i + 1);
     setFeedback(null);
-    setBuildOrder([]);
     setMatchLocked({});
     setMatchSel(null);
     setMatchWrong(null);
@@ -212,7 +210,7 @@ export default function ChallengePlay(): JSX.Element {
         <Text style={styles.partyTitle}>还差一点！</Text>
         <Text style={styles.partyBalance}>答对 {hits}/{challenge.requiredTurns}，再来一轮（题目会重新洗牌顺序）</Text>
         <Pressable style={styles.bigBtn} onPress={() => {
-          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setBuildOrder([]); setMatchLocked({}); setMatchSel(null);
+          setExIdx(0); setHits(0); setStreak(0); setFeedback(null); setMatchLocked({}); setMatchSel(null);
           void (async () => {
             if (!token || !id) return;
             const ex2 = await api.challengeExercises(token, id);
@@ -268,22 +266,8 @@ export default function ChallengePlay(): JSX.Element {
         )}
         {ex.type === "build" && (
           <View style={styles.card}>
-            <Text style={styles.label}>造句：把句子排出来</Text>
-            <View style={styles.buildArea}>
-              {buildOrder.length === 0 && <Text style={styles.subWord}>点下面的词块组句子</Text>}
-              {buildOrder.map((ti, i) => (
-                <Pressable key={`${ti}-${i}`} style={styles.tileOn} onPress={() => setBuildOrder((o) => o.filter((_, j) => j !== i))}>
-                  <Text style={styles.tileText}>{ex.tiles[ti]}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.tileRow}>
-              {ex.tiles.map((t, i) => (
-                <Pressable key={`${t}-${i}`} style={[styles.tile, buildOrder.includes(i) && styles.tileUsed]} onPress={() => { if (!buildOrder.includes(i)) setBuildOrder((o) => [...o, i]); }}>
-                  <Text style={styles.tileText}>{t}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <Text style={styles.label}>造句填空</Text>
+            <Text style={styles.prompt}>{ex.sentence}</Text>
             <Text style={styles.subWord}>提示：{ex.hint}</Text>
           </View>
         )}
@@ -377,9 +361,13 @@ export default function ChallengePlay(): JSX.Element {
         </View>
       )}
       {ex.type === "build" && (
-        <Pressable style={[styles.micBtn, (busy || !!feedback) && styles.micBtnBusy]} disabled={busy || !!feedback || buildOrder.length === 0} onPress={() => void submit(buildOrder.map((ti) => ex.tiles[ti]))}>
-          <Text style={styles.micText}>提交句子</Text>
-        </Pressable>
+        <View style={styles.optionGrid}>
+          {ex.options.map((o) => (
+            <Pressable key={o} style={styles.optionBtn} disabled={busy || !!feedback} onPress={() => void submit(o)}>
+              <Text style={styles.optionText}>{o}</Text>
+            </Pressable>
+          ))}
+        </View>
       )}
       {ex.type === "match" && (
         <Text style={styles.footnote}>全部配对正确后自动进入下一题</Text>
@@ -419,12 +407,6 @@ const styles = StyleSheet.create({
   bigWord: { color: "#f2f7fa", fontSize: 40, fontWeight: "800" },
   subWord: { color: "#9fb8c9", fontSize: 14 },
   prompt: { color: "#f2f7fa", fontSize: 19, lineHeight: 28 },
-  buildArea: { flexDirection: "row", flexWrap: "wrap", gap: 6, minHeight: 44, alignItems: "center" },
-  tileRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tile: { backgroundColor: "#0d2233", borderRadius: 8, borderWidth: 1, borderColor: "#2a4a66", paddingHorizontal: 10, paddingVertical: 6 },
-  tileUsed: { opacity: 0.3 },
-  tileOn: { backgroundColor: "#1a73e8", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  tileText: { color: "#f2f7fa", fontSize: 14 },
   matchRow: { flexDirection: "row", gap: 10 },
   matchCol: { flex: 1, gap: 8 },
   matchItem: { borderRadius: 10, borderWidth: 1, borderColor: "#2a4a66", backgroundColor: "#0d2233", paddingVertical: 10, paddingHorizontal: 8, alignItems: "center" },

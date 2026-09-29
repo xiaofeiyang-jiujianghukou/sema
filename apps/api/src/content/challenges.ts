@@ -131,7 +131,7 @@ export type Exercise =
   | { type: "mc"; prompt: string; options: string[]; wordIndex: number }
   | { type: "tf"; prompt: string; wordIndex: number; shown: string }
   | { type: "cloze"; sentence: string; options: string[]; wordIndex: number }
-  | { type: "build"; tiles: string[]; hint: string; sentence: string }
+  | { type: "build"; sentence: string; blank: string; options: string[]; hint: string }
   | { type: "match"; left: string[]; right: string[]; wordIndices: number[] };
 
 export interface CheckResult {
@@ -245,11 +245,16 @@ export function unitExercises(challengeId: string): Exercise[] {
     const distractors = shuffled(words.filter((_, j) => j !== wi).map((w) => w.meaning), rand).slice(0, 3);
     out.push({ type: "mc", prompt: `「${words[wi]!.term}」的意思是？`, options: shuffled([words[wi]!.meaning, ...distractors], rand), wordIndex: wi });
   }
-  // 造句 ×1：例句切词块排序
+  // 造句 ×1（完形式）：句型例句挖掉一个词块，四选一填入
   const pIdx = Math.floor(rand() * unit.patterns.length);
   const pat = unit.patterns[pIdx]!;
-  const tiles = shuffled(splitTiles(pat.example), rand);
-  out.push({ type: "build", tiles, hint: pat.exampleZh, sentence: pat.example });
+  const chunks = splitTiles(pat.example).filter((t) => t.length >= 2);
+  const blank = chunks[Math.floor(rand() * chunks.length)] ?? pat.example;
+  const distractors = shuffled(
+    unit.patterns.filter((_, pi) => pi !== pIdx).flatMap((p2) => splitTiles(p2.example)).filter((t) => t.length >= 2 && t !== blank),
+    rand,
+  ).slice(0, 3);
+  out.push({ type: "build", sentence: pat.example.replace(blank, "____"), blank, options: shuffled([blank, ...distractors], rand), hint: pat.exampleZh });
   // 连线 ×1：4 对词↔义
   const pairs = shuffled(words.map((_, i) => i), rand).slice(0, 4);
   out.push({ type: "match", left: pairs.map((i) => words[i]!.term), right: shuffled(pairs.map((i) => words[i]!.meaning), rand), wordIndices: pairs });
@@ -280,8 +285,8 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
       return { ok, correct: w.term, why: `完整句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
-      const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);
-      return { ok, correct: ex.sentence, why: `原句：${ex.sentence}（${ex.hint}）` };
+      const ok = normEx(String(answer)) === normEx(ex.blank);
+      return { ok, correct: ex.blank, why: `完整句子：${ex.sentence.replace("____", ex.blank)}（${ex.hint}）` };
     }
     case "match": {
       const mapping = answer as number[];
