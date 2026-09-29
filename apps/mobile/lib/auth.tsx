@@ -13,6 +13,8 @@ interface AuthState {
   loginCode: (phone: string, code: string) => Promise<void>;
   register: (phone: string, code: string, password: string, nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** 引导流程/资料修改后同步本地用户态 */
+  updateUser: (u: PublicUser) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       setToken(null);
       setUser(null);
     },
+    updateUser: (u) => setUser(u),
   }), [user, token]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

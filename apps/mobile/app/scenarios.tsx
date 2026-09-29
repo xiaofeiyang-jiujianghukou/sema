@@ -15,10 +15,17 @@ const LANGS: Array<{ key: "en" | "ja" | "ko" | "all"; label: string }> = [
   { key: "ko", label: "韩语" },
 ];
 
+/** 水平 → 推荐难度优先级（越靠前越先展示） */
+const LEVEL_ORDER: Record<"zero" | "basic" | "pro", string[]> = {
+  zero: ["A1", "A2", "B1"],
+  basic: ["A2", "B1", "A1"],
+  pro: ["B1", "A2", "A1"],
+};
+
 export default function Scenarios(): JSX.Element {
   const router = useRouter();
-  const { token } = useAuth();
-  const [lang, setLang] = useState<"en" | "ja" | "ko" | "all">("all");
+  const { token, user } = useAuth();
+  const [lang, setLang] = useState<"en" | "ja" | "ko" | "all">(user?.targetLang ?? "all");
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
@@ -28,10 +35,17 @@ export default function Scenarios(): JSX.Element {
     if (!token) return;
     setLoading(true);
     api.scenarios(lang === "all" ? undefined : lang)
-      .then((res) => { setScenarios(res.scenarios); setError(null); })
+      .then((res) => {
+        const order = user?.level ? LEVEL_ORDER[user.level] : null;
+        const sorted = order
+          ? [...res.scenarios].sort((a, b) => order.indexOf(a.difficulty) - order.indexOf(b.difficulty))
+          : res.scenarios;
+        setScenarios(sorted);
+        setError(null);
+      })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [token, lang]);
+  }, [token, lang, user]);
 
   const open = async (scenarioId: string): Promise<void> => {
     if (!token) return;
@@ -61,6 +75,17 @@ export default function Scenarios(): JSX.Element {
           </Pressable>
         ))}
       </View>
+
+      {user?.level === "zero" && lang !== "all" && (
+        <View style={styles.recoBanner}>
+          <Text style={styles.recoText}>📚 零基础模式：已按难度排序，从最上面的情景开始最合适</Text>
+        </View>
+      )}
+      {user?.level === "pro" && lang !== "all" && (
+        <View style={styles.recoBanner}>
+          <Text style={styles.recoText}>⚡ 进阶模式：真实语速对话，B1 情景排前面了</Text>
+        </View>
+      )}
 
       {loading && <ActivityIndicator color="#8fd3ff" style={{ marginTop: 32 }} />}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -95,6 +120,8 @@ function alertError(err: unknown): void {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#081a2c", padding: 16 },
+  recoBanner: { backgroundColor: "#12314c", borderRadius: 10, padding: 10, marginTop: 10 },
+  recoText: { color: "#9fd1f7", fontSize: 12, lineHeight: 17 },
   topbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   topbarTitle: { color: "#f2f7fa", fontSize: 18, fontWeight: "700" },
   meBtn: { borderRadius: 10, borderWidth: 1, borderColor: "#2a4a66", paddingHorizontal: 14, paddingVertical: 6, backgroundColor: "#0d2233" },
