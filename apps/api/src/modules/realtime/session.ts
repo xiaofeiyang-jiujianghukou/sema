@@ -146,7 +146,8 @@ export class RealtimeVoiceSession {
       this.speaking = true;
       this.callbacks.onReplyStart?.(text);
 
-      const turn = await this.conversations.turn(this.sessionId, text);
+      const speechSeconds = segment.length / 32_000; // 16k mono s16le = 32000 B/s
+      const turn = await this.conversations.turnVoice(this.sessionId, text, speechSeconds);
       if (controller.signal.aborted) return;
       this.callbacks.onReply({
         reply: turn.reply,

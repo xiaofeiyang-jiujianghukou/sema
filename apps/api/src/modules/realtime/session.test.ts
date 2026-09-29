@@ -36,10 +36,11 @@ function makeSession(script: Array<string | [string, string]>, tts: MockTTSProvi
   const audio: Buffer[] = [];
   const asr = new MockASRProvider(script);
   const conversations = {
-    turn: async () => ({
+    // 语音轮按说话秒数计费：mock 只回固定金额，秒数由实现侧计算
+    turnVoice: async (_id: string, _text: string, seconds: number) => ({
       sessionId: "s1",
       reply: "Sure thing — anything else?",
-      chargedCents: 5,
+      chargedCents: Math.max(1, Math.ceil(seconds)) * 5,
       balanceCredits: "30",
     }),
   } as unknown as ConstructorParameters<typeof RealtimeVoiceSession>[2];

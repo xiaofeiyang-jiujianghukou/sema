@@ -177,12 +177,35 @@ export class ConversationService {
     };
   }
 
+  /** 文字轮次：每轮固定 10 厘（开口前扣费，余额不足即拒绝，欠账永不累积） */
   async turn(sessionId: string, text: string): Promise<TurnResult> {
     const session = await this.mustGet(sessionId);
     if (session.status !== "active") throw new ConversationEndedError(sessionId);
+    const { entry } = await this.wallets.charge(session.userId, "ai_text_turn", 1, {
+      relatedId: sessionId,
+      idempotencyKey: `${sessionId}:t${session.billedSeq += 1}`,
+    });
+    const chargedCents = -entry.amountCents; // 扣费条目为负数，对外报正数
+    session.totalBilledCents += chargedCents;
+    return this.dialogue(session, text, chargedCents);
+  }
 
-    // 先结清上一段时长，再生成回复——余额不足即在开口前拒绝，欠账永不累积
-    const chargedCents = await this.accrue(session);
+  /** 语音轮次：按用户本段实际说话的秒数计费（5 厘/秒，向上取整；静音不计费） */
+  async turnVoice(sessionId: string, text: string, speechSeconds: number): Promise<TurnResult> {
+    const session = await this.mustGet(sessionId);
+    if (session.status !== "active") throw new ConversationEndedError(sessionId);
+    const seconds = Math.max(1, Math.ceil(speechSeconds));
+    const { entry } = await this.wallets.charge(session.userId, "ai_conversation", seconds, {
+      relatedId: sessionId,
+      idempotencyKey: `${sessionId}:t${session.billedSeq += 1}`,
+    });
+    const chargedCents = -entry.amountCents;
+    session.totalBilledCents += chargedCents;
+    return this.dialogue(session, text, chargedCents);
+  }
+
+  private async dialogue(session: ConversationSession, text: string, chargedCents: number): Promise<TurnResult> {
+    const sessionId = session.id;
 
     session.history.push({ role: "user", content: text });
     const decision = this.router.route("dialogue");
@@ -215,7 +238,6 @@ export class ConversationService {
     const session = await this.mustGet(sessionId);
     if (session.status !== "active") throw new ConversationEndedError(sessionId);
 
-    const chargedCents = await this.accrue(session);
     session.status = "ended";
     session.endedAtMs = this.now();
     await this.repo.save(session);
@@ -231,10 +253,7 @@ export class ConversationService {
       totalBilledCents: session.totalBilledCents,
       balanceCredits: wallet.balanceCredits,
       costCny: session.meter.summary().totalCny,
-      billingNote:
-        chargedCents > 0
-          ? `本次结算 ${chargedCents} 厘（累计 ${session.totalBilledCents} 厘）`
-          : `累计已结 ${session.totalBilledCents} 厘`,
+      billingNote: `按轮计费 · 累计 ${session.totalBilledCents} 厘`,
     };
   }
 
@@ -258,32 +277,6 @@ export class ConversationService {
       liveDurationSeconds: Math.max(0, Math.floor((endMs - session.startedAtMs) / 1000)),
       totalBilledCents: session.totalBilledCents,
     };
-  }
-
-  /**
-   * 水表走字：结清自上次结算以来的秒数（每个秒段一笔、幂等）。
-   * 空档封顶 300s（5 分钟）：会话闲置（切后台/忘关页面）的时间不计时——
-   * 否则隔夜回来第一句话会被一次性扣掉数小时费用，对用户不公平。
-   */
-  private async accrue(session: ConversationSession): Promise<number> {
-    const nowMs = this.now();
-    const elapsedSeconds = Math.min(300, Math.floor((nowMs - session.lastBilledAtMs) / 1000));
-    if (elapsedSeconds <= 0) return 0;
-
-    const { entry } = await this.wallets.charge(
-      session.userId,
-      "ai_conversation",
-      elapsedSeconds,
-      {
-        relatedId: session.id,
-        idempotencyKey: `${session.id}:${session.billedSeq}`,
-        reason: "AI 口语对话（按秒累进）",
-      },
-    );
-    session.billedSeq += 1;
-    session.lastBilledAtMs += elapsedSeconds * 1000;
-    session.totalBilledCents += -entry.amountCents;
-    return -entry.amountCents;
   }
 
   /** 用户全部会话（学习档案/导出用，按开始时间升序） */

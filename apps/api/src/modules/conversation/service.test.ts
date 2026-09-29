@@ -51,36 +51,45 @@ describe("会话服务：start 与内容资产", () => {
   });
 });
 
-describe("会话服务：按秒累进计费（水表走字）", () => {
-  it("turn/end 结清秒段，账目分秒不差", async () => {
+describe("会话服务：按交互计费（说话才计时，闲置不扣）", () => {
+  it("文字轮每轮固定 10 厘；开场白与挂机零扣费；结束不再结算", async () => {
     await grantFor("u1", SIGNUP_GRANT_CENTS);
 
     const started = await conversations.start("u1", "coffee-order");
+    expect(started.opener.length).toBeGreaterThan(0); // 开场白免费
 
-    clockMs = 30_000; // 对话进行 30 秒后来第一条
+    clockMs = 30_000; // 开场后闲置 30 秒——不计费
     const turn1 = await conversations.turn(started.sessionId, "One latte please");
-    expect(turn1.chargedCents).toBe(150); // 30s × 5厘
-    expect(turn1.balanceCredits).toBe("28.5");
+    expect(turn1.chargedCents).toBe(10); // ai_text_turn 10 厘/轮
+    expect(turn1.balanceCredits).toBe("29.9");
     expect(turn1.reply.length).toBeGreaterThan(0);
 
-    clockMs = 95_000; // 又过 65 秒
+    clockMs = 95_000; // 闲置 65 秒也不计费
     const turn2 = await conversations.turn(started.sessionId, "For here, please");
-    expect(turn2.chargedCents).toBe(325); // 65s × 5厘
+    expect(turn2.chargedCents).toBe(10);
 
-    clockMs = 100_000; // 收尾 5 秒
+    clockMs = 100_000;
     const ended = await conversations.end(started.sessionId);
     expect(ended.durationSeconds).toBe(100);
     expect(ended.turns).toBe(2);
-    expect(ended.totalBilledCents).toBe(500); // 100s × 5厘
-    expect(ended.balanceCredits).toBe("25");
+    expect(ended.totalBilledCents).toBe(20); // 只有两轮交互的钱
+    expect(ended.balanceCredits).toBe("29.8");
     expect(ended.costCny).toBe(0); // mock 供应商零成本
   });
 
-  it("余额不足：开口前就被拦下，时间水位未推进", async () => {
-    await grantFor("u2", 100); // 只够 20 秒
+  it("语音轮按实际说话秒数计费（向上取整），与挂钟无关", async () => {
+    await grantFor("u1v", SIGNUP_GRANT_CENTS);
+    const started = await conversations.start("u1v", "coffee-order");
+
+    clockMs = 600_000; // 开场后挂机 10 分钟
+    const turn = await conversations.turnVoice(started.sessionId, "Hello!", 4.2);
+    expect(turn.chargedCents).toBe(25); // ceil(4.2)=5s × 5厘——与 10 分钟挂机无关
+  });
+
+  it("余额不足：开口前就被拦下，欠账不累积", async () => {
+    await grantFor("u2", 5); // 不够一轮 10 厘
 
     const started = await conversations.start("u2", "coffee-order");
-    clockMs = 30_000; // 需要 150 厘 > 100 厘
     await expect(conversations.turn(started.sessionId, "Hi")).rejects.toBeInstanceOf(
       InsufficientFundsError,
     );
@@ -88,11 +97,10 @@ describe("会话服务：按秒累进计费（水表走字）", () => {
     const snap = await conversations.snapshot(started.sessionId);
     expect(snap.totalBilledCents).toBe(0);
 
-    // 充值后原样继续：31 秒一并结清（31 × 5 = 155 厘）
+    // 充值后原样继续（每轮 10 厘）
     await grantFor("u2", 1000);
-    clockMs = 31_000;
     const turn = await conversations.turn(started.sessionId, "Hi");
-    expect(turn.chargedCents).toBe(155);
+    expect(turn.chargedCents).toBe(10);
   });
 
   it("结束后再 turn / end 都被拒绝", async () => {

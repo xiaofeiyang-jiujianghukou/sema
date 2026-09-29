@@ -12,6 +12,7 @@ export type PricingUnit = "second" | "count" | "word" | "pack";
 
 export type ActionType =
   | "ai_conversation"
+  | "ai_text_turn"
   | "review_report"
   | "vocab_lecture"
   | "scenario_pack";
@@ -29,9 +30,16 @@ export const PRICING: Readonly<Record<ActionType, PriceDef>> = {
   ai_conversation: {
     code: "ai_conversation",
     unit: "second",
-    centsPerUnit: 5, // 5 厘/秒 = 3 积分/分钟
+    centsPerUnit: 5, // 5 厘/秒（只计用户实际说话的秒数）
     displayName: "AI 口语对话",
-    description: "3 积分/分钟，按秒计费，中断按秒折算",
+    description: "语音轮次按你实际说话的秒数计费（5 厘/秒，向上取整秒）；静音、闲置、AI 开场白均不计费",
+  },
+  ai_text_turn: {
+    code: "ai_text_turn",
+    unit: "count",
+    centsPerUnit: 10, // 10 厘/轮 = 0.1 积分/轮
+    displayName: "AI 文字对话",
+    description: "文字轮次按轮计费（10 厘/轮）；闲置不计费",
   },
   review_report: {
     code: "review_report",

@@ -70,7 +70,7 @@ describe("会话 API 冒烟", () => {
       payload: { text: "Hi Ben, one latte please" },
     });
     expect(turn1.statusCode).toBe(200);
-    expect(turn1.json().chargedCents).toBe(100); // 20s × 5厘
+    expect(turn1.json().chargedCents).toBe(10); // ai_text_turn 每轮 10 厘
     expect(turn1.json().reply).toContain("anything else");
 
     clockMs = 50_000;
@@ -79,7 +79,7 @@ describe("会话 API 冒烟", () => {
       url: `/v1/conversations/${startBody.sessionId}/turns`,
       payload: { text: "To go, please. How much is it?" },
     });
-    expect(turn2.json().chargedCents).toBe(150); // 30s × 5厘
+    expect(turn2.json().chargedCents).toBe(10);
 
     clockMs = 56_000;
     const end = await app.inject({
@@ -90,9 +90,9 @@ describe("会话 API 冒烟", () => {
     const endBody = end.json();
     expect(endBody.durationSeconds).toBe(56);
     expect(endBody.turns).toBe(2);
-    expect(endBody.totalBilledCents).toBe(280); // 56s × 5厘
-    expect(endBody.balanceCredits).toBe("27.2"); // 30 - 2.8
-    expect(endBody.billingNote).toContain("280");
+    expect(endBody.totalBilledCents).toBe(20); // 两轮文字 × 10 厘
+    expect(endBody.balanceCredits).toBe("29.8"); // 30 - 0.2（两轮 × 10 厘）
+    expect(endBody.billingNote).toContain("20 厘");
   });
 
   it("未知情景 404", async () => {
@@ -110,7 +110,7 @@ describe("会话 API 冒烟", () => {
     await app.inject({
       method: "POST",
       url: `/v1/wallet/grant?userId=${userC2.userId}`,
-      payload: { cents: 100, reason: "少量赠送" },
+      payload: { cents: 5, reason: "不够一轮文字（10 厘）" },
     });
     const start = await app.inject({
       method: "POST",
@@ -120,7 +120,6 @@ describe("会话 API 冒烟", () => {
     });
     const sessionId = start.json().sessionId;
 
-    clockMs = 30_000;
     const blocked = await app.inject({
       method: "POST",
       url: `/v1/conversations/${sessionId}/turns`,
@@ -129,7 +128,7 @@ describe("会话 API 冒烟", () => {
     expect(blocked.statusCode).toBe(409);
     expect(blocked.json().error.code).toBe("INSUFFICIENT_FUNDS");
 
-    // 充值后续聊成功（31 秒一并结清 = 155 厘）
+    // 充值后续聊成功（新的一轮 10 厘）
     await app.inject({
       method: "POST",
       url: `/v1/wallet/topup?userId=${userC2.userId}`,
@@ -142,7 +141,7 @@ describe("会话 API 冒烟", () => {
       payload: { text: "Excuse me, how do I get to the tube?" },
     });
     expect(resumed.statusCode).toBe(200);
-    expect(resumed.json().chargedCents).toBe(155);
+    expect(resumed.json().chargedCents).toBe(10);
   });
 
   it("空消息 400", async () => {
