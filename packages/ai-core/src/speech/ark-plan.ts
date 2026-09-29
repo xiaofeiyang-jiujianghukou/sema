@@ -4,8 +4,8 @@
  * 两个模型共用你的 ARK API Key（X-Api-Key），端点在 openspeech.bytedance.com：
  * - TTS:  wss://openspeech.bytedance.com/api/v3/plan/tts/unidirectional/stream
  *         一次性发全部文本，流式收音频分片（X-Api-Resource-Id: seed-tts-2.0）
- * - ASR:  wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_async
- *         边推音频边出结果（X-Api-Resource-Id: volc.seedasr.sauc.duration）
+ * - ASR:  wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream
+ *         整段提交后出终稿（X-Api-Resource-Id: volc.seedasr.sauc.duration）；支持 audio.language 与热词
  */
 import { randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
@@ -175,7 +175,7 @@ export class ArkPlanASRProvider implements ASRProvider {
   createRecognizer(options?: RecognizerOptions): StreamingRecognizer {
     const sampleRate = options?.sampleRate ?? 16_000;
     const connectId = randomUUID();
-    const ws = new WebSocket(`${this.config.baseUrl ?? DEFAULT_TTS_BASE}/api/v3/plan/sauc/bigmodel_async`, {
+    const ws = new WebSocket(`${this.config.baseUrl ?? DEFAULT_TTS_BASE}/api/v3/plan/sauc/bigmodel_nostream`, {
       headers: {
         "X-Api-Key": this.config.apiKey,
         "X-Api-Resource-Id": this.model,
@@ -285,6 +285,9 @@ export class ArkPlanASRProvider implements ASRProvider {
       options.signal.addEventListener("abort", () => ws.close(), { once: true });
     }
 
+    const language = options?.language ?? this.config.language;
+    const hotwords = options?.boostingTable ? Object.keys(options.boostingTable) : [];
+
     ws.on("open", () => {
       opened = true;
       ws.send(encodeFrame({
@@ -295,17 +298,26 @@ export class ArkPlanASRProvider implements ASRProvider {
         compression: Compression.Gzip,
         payload: gzipSync(Buffer.from(JSON.stringify({
           user: { uid: this.config.uid ?? "sema" },
-          audio: { format: "wav", codec: "raw", rate: sampleRate, bits: 16, channel: 1 },
+          audio: {
+            format: "wav",
+            codec: "raw",
+            rate: sampleRate,
+            bits: 16,
+            channel: 1,
+            // 语言提示只在 nostream 端点支持，且属于 audio 对象（此前误放
+            // request 里从不生效，模型一直跑中英自动模式）
+            ...(language ? { language } : {}),
+          },
           request: {
             model_name: "bigmodel",
             enable_itn: true,
             enable_punc: true,
             enable_ddc: true,
             show_utterances: true,
-            enable_nonstream: false,
-            language: options?.language ?? this.config.language ?? "en-US",
-            ...(options?.boostingTable && Object.keys(options.boostingTable).length > 0
-              ? { corpus: { boosting_table: options.boostingTable } }
+            // 热词直传：corpus.context 为 JSON 字符串 {"hotwords":[{word}]}
+            // nostream 上限 5000 词；boosting_table 内联 map 不是合法格式
+            ...(hotwords.length > 0
+              ? { corpus: { context: JSON.stringify({ hotwords: hotwords.map((w) => ({ word: w })) }) } }
               : {}),
           },
         }), "utf8")),
