@@ -151,9 +151,28 @@ export class RealtimeVoiceSession {
   }
 
   /** 语音段 → ASR → LLM（计费）→ TTS → 下行 */
+  /** 段音频电平统计：诊断麦克风采音是否偏低（影响 ASR 准确率） */
+  private audioStats(segment: Buffer): { rms: number; peak: number } {
+    let sumSq = 0;
+    let peak = 0;
+    let count = 0;
+    for (let offset = 0; offset + 1 < segment.length; offset += 2) {
+      const sample = segment.readInt16LE(offset);
+      sumSq += sample * sample;
+      const abs = Math.abs(sample);
+      if (abs > peak) peak = abs;
+      count += 1;
+    }
+    return { rms: Math.round(Math.sqrt(sumSq / Math.max(1, count))), peak };
+  }
+
   private async handleSegment(segment: Buffer): Promise<void> {
     if (this.closed || segment.length === 0) return;
     try {
+      {
+        const st = this.audioStats(segment);
+        console.log(`[realtime] 段音频 ${(segment.length / 2 / 16000).toFixed(2)}s 电平 RMS=${st.rms} 峰值=${st.peak}（参考：良好 2000-15000，偏低 <1000）`);
+      }
       const text = await this.transcribe(segment);
       if (this.closed) return;
       if (text.trim().length === 0) {

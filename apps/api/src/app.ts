@@ -176,12 +176,35 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     walletRepo,
     userRepo,
   } satisfies AccountDeletionRepos);
-  app.decorate("auth", new AuthService({
+  const auth = new AuthService({
     users: userRepo,
     sms: options.smsSender ?? new ConsoleSmsSender(),
     now: clock,
     ...(options.smsCode ? { codeFactory: options.smsCode } : {}),
-  }));
+  });
+  if (dbPool) {
+    // 登录态持久化：重启不掉线（auth_tokens 表，启动预热内存 Map，鉴权查询保持同步）
+    await dbPool.query("CREATE TABLE IF NOT EXISTS auth_tokens (token text PRIMARY KEY, user_id text NOT NULL, expires_at_ms bigint NOT NULL)");
+    await auth.attachTokenStore({
+      async put(token, userId, expiresAtMs) {
+        await dbPool.query(
+          "INSERT INTO auth_tokens (token, user_id, expires_at_ms) VALUES ($1, $2, $3) ON CONFLICT (token) DO NOTHING",
+          [token, userId, expiresAtMs],
+        );
+      },
+      async del(token) {
+        await dbPool.query("DELETE FROM auth_tokens WHERE token = $1", [token]);
+      },
+      async loadAll() {
+        const res = await dbPool.query<{ token: string; user_id: string; expires_at_ms: string }>(
+          "SELECT token, user_id, expires_at_ms FROM auth_tokens WHERE expires_at_ms > $1",
+          [Date.now()],
+        );
+        return res.rows.map((r) => ({ token: r.token, userId: r.user_id, expiresAtMs: Number(r.expires_at_ms) }));
+      },
+    });
+  }
+  app.decorate("auth", auth);
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: "/v1/auth" });

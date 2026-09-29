@@ -138,12 +138,31 @@ function toPublic(user: UserAccount): PublicUser {
   return { id: user.id, phone: user.phone, nickname: user.nickname, targetLang: user.targetLang, createdAtMs: user.createdAtMs };
 }
 
+/** 鉴权令牌持久化接口：配置 Postgres 时实现，重启不掉登录态 */
+export interface AuthTokenStore {
+  put(token: string, userId: string, expiresAtMs: number): Promise<void>;
+  del(token: string): Promise<void>;
+  loadAll(): Promise<Array<{ token: string; userId: string; expiresAtMs: number }>>;
+}
+
 export class AuthService {
-  /** token → userId（鉴权中间件查询用） */
+  /** token → userId（鉴权中间件查询用；PG 模式下启动时从库预热） */
   private readonly sessions = new Map<string, { userId: string; expiresAtMs: number }>();
   private readonly codes = new Map<string, { pending: PendingCode; sentAtMs: number; hourly: number[] }>();
 
   constructor(private readonly deps: AuthDeps) {}
+
+  /** 注入持久化并预热内存表（必须在服务监听前调用） */
+  async attachTokenStore(store: AuthTokenStore): Promise<void> {
+    this.tokenStore = store;
+    const rows = await store.loadAll();
+    const now = this.deps.now();
+    for (const row of rows) {
+      if (row.expiresAtMs > now) this.sessions.set(row.token, { userId: row.userId, expiresAtMs: row.expiresAtMs });
+    }
+  }
+
+  private tokenStore?: AuthTokenStore;
 
   private codeHash(phone: string, code: string): string {
     return createHash("sha256").update(`${phone}:${code}`).digest("hex");
@@ -191,6 +210,7 @@ export class AuthService {
     const token = randomBytes(32).toString("hex");
     const expiresAtMs = this.deps.now() + SESSION_TTL_MS;
     this.sessions.set(token, { userId, expiresAtMs });
+    void this.tokenStore?.put(token, userId, expiresAtMs).catch(() => {});
     return { token, expiresAtMs };
   }
 
@@ -252,6 +272,7 @@ export class AuthService {
 
   async logout(token: string): Promise<void> {
     this.sessions.delete(token);
+    void this.tokenStore?.del(token).catch(() => {});
   }
 
   /** 鉴权中间件用：令牌 → userId（过期即无效） */
