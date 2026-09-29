@@ -12,6 +12,27 @@ import type WebSocket from "ws";
 import { z } from "zod";
 import { RealtimeVoiceSession } from "../modules/realtime/session.js";
 import { aacToPcm } from "../modules/realtime/transcode.js";
+import { getScenario } from "../content/scenarios.js";
+
+/**
+ * 情景词表 → SAUC 热词表：targetVocab 条目按 "/"、"、" 拆分成可说的短语，
+ * 过滤掉含省略号/中文的模板条目（如 "I'd like ..."）
+ */
+function buildBoostingTable(scenarioId: string, vocab: string[]): Record<string, number> {
+  const table: Record<string, number> = {};
+  const extra: Record<string, string[]> = {
+    "coffee-order": ["whole milk", "oat milk", "semi-skimmed milk", "latte", "cappuccino", "americano", "espresso", "croissant", "to go", "for here", "medium"],
+  };
+  for (const entry of [...vocab, ...(extra[scenarioId] ?? [])]) {
+    for (const piece of entry.split(/[/、]/)) {
+      const term = piece.trim().replace(/[.?!…]+$/, "").toLowerCase();
+      if (term.length >= 3 && /^[a-z\u00C0-\u024F][a-z\u00C0-\u024F' -]+$/.test(term) && !term.includes("...")) {
+        table[term] = 20;
+      }
+    }
+  }
+  return table;
+}
 
 const startSchema = z.object({
   type: z.literal("start"),
@@ -130,7 +151,15 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
               onError: (message) => send({ type: "error", message }),
             },
             app.vadOptions,
-            app.speechForLang(started.scenario.targetLang),
+            {
+              ...app.speechForLang(started.scenario.targetLang),
+              // 情景领域词汇 → ASR 热词 boosting（如 "whole milk / oat milk" 拆词），
+              // 解决口音 + 领域词导致的误识别（"whole milk" → "Horrormark"）
+              boostingTable: buildBoostingTable(
+                started.scenario.id,
+                getScenario(started.scenario.id)?.targetVocab ?? [],
+              ),
+            },
           );
           send({
             type: "ready",

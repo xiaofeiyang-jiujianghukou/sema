@@ -304,6 +304,9 @@ export class ArkPlanASRProvider implements ASRProvider {
             show_utterances: true,
             enable_nonstream: false,
             language: options?.language ?? this.config.language ?? "en-US",
+            ...(options?.boostingTable && Object.keys(options.boostingTable).length > 0
+              ? { corpus: { boosting_table: options.boostingTable } }
+              : {}),
           },
         }), "utf8")),
       }));

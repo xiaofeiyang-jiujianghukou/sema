@@ -63,7 +63,11 @@ export class RealtimeVoiceSession {
     private readonly callbacks: RealtimeCallbacks,
     vadOptions?: VADOptions,
     /** 语言参数：ASR 识别语言提示 + TTS 音色（按情景目标语言选择） */
-    private readonly speechOptions?: { language?: string; speaker?: string },
+    private readonly speechOptions?: {
+      language?: string;
+      speaker?: string;
+      boostingTable?: Record<string, number>;
+    },
   ) {
     this.vad = {
       rmsThreshold: vadOptions?.rmsThreshold ?? 700,
@@ -261,6 +265,7 @@ export class RealtimeVoiceSession {
     const recognizer = this.asr.createRecognizer({
       sampleRate: 16_000,
       ...(this.speechOptions?.language ? { language: this.speechOptions.language } : {}),
+      ...(this.speechOptions?.boostingTable ? { boostingTable: this.speechOptions.boostingTable } : {}),
     });
     let lastPartial = "";
     const collecting = (async () => {

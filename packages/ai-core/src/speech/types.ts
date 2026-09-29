@@ -44,6 +44,8 @@ export interface RecognizerOptions {
   sampleRate?: number;
   /** 识别语言提示（BCP-47：en-US / ja-JP / ko-KR），显著影响准确率 */
   language?: string;
+  /** 热词表（词 → 权重）：情景领域词汇 boosting，如咖啡店场景的 "whole milk" */
+  boostingTable?: Record<string, number>;
   signal?: AbortSignal;
 }
 
