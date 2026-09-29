@@ -3,7 +3,7 @@ import type { JSX } from "react";
  * 闯关进行中：混合题型（跟读/选择/判断/完形/造句/连线）一次一题、秒出对错
  * 答案判题在服务端；达标自动发奖
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Audio } from "expo-av";
@@ -34,6 +34,8 @@ export default function ChallengePlay(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState<null | { rewardCents: number; balance: string }>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<null | { base64: string; wordIndex: number }>(null);
+  const pressStartRef = useRef(0);
   // 造句 / 连线 本地选择状态
   const [buildOrder, setBuildOrder] = useState<number[]>([]);
   const [matchSel, setMatchSel] = useState<number | null>(null);
@@ -167,27 +169,13 @@ export default function ChallengePlay(): JSX.Element {
     }
   }, [token, id, matchSel, busy, matchLocked, exercises, exIdx, submit]);
 
-  // ══ 跟读题：录音 → 单词判定 ══
-  const readWord = useCallback(async (): Promise<void> => {
-    if (!token || !id || busy || feedback) return;
-    const ex = exercises?.[exIdx];
-    if (!ex || ex.type !== "read") return;
+  // ══ 跟读题：按住说话、松开判定；上传失败保留音频可重传（绝不丢录音） ══
+  const uploadWord = useCallback(async (base64: string, wordIndex: number): Promise<void> => {
+    if (!token || !id) return;
     setBusy(true);
     try {
-      if (!recording) {
-        await Audio.requestPermissionsAsync();
-        const { recording: rec } = await Audio.Recording.createAsync(REC);
-        setRecording(rec);
-        setFeedback(null);
-        setBusy(false);
-        return;
-      }
-      await new Promise<void>((resolve) => setTimeout(resolve, 350));
-      const uri = recording.getURI() ?? "";
-      await recording.stopAndUnloadAsync();
-      setRecording(null);
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const res = await api.challengeWord(token, id, ex.wordIndex, base64);
+      const res = await api.challengeWord(token, id, wordIndex, base64);
+      setPendingUpload(null);
       setFeedback({ ok: res.ok, correct: res.ok ? undefined : `听成了「${res.transcript}」`, why: res.why });
       if (res.ok) {
         const newHits = hits + 1;
@@ -198,12 +186,53 @@ export default function ChallengePlay(): JSX.Element {
         }
         setTimeout(() => nextExercise(true), 900);
       }
-    } catch (err) {
-      Alert.alert("判定失败", err instanceof ApiError ? err.message : String(err));
+    } catch {
+      // 上传/判定失败：保留音频，用户点重传（不必重说）
+      setPendingUpload({ base64, wordIndex });
     } finally {
       setBusy(false);
     }
-  }, [token, id, busy, feedback, exercises, exIdx, recording, hits, challenge, threshold, nextExercise]);
+  }, [token, id, hits, challenge, threshold, nextExercise]);
+
+  const readPressIn = useCallback(async (): Promise<void> => {
+    if (!token || busy || feedback || pendingUpload) return;
+    pressStartRef.current = Date.now();
+    setBusy(true);
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, shouldDuckAndroid: true, playThroughEarpieceAndroid: false });
+      const { recording: rec } = await Audio.Recording.createAsync(REC);
+      setRecording(rec);
+      setFeedback(null);
+    } catch (err) {
+      Alert.alert("录音失败", err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [token, busy, feedback, pendingUpload]);
+
+  const readPressOut = useCallback(async (): Promise<void> => {
+    const ex = exercises?.[exIdx];
+    if (!ex || ex.type !== "read" || !recording) return;
+    const heldMs = Date.now() - pressStartRef.current;
+    setBusy(true);
+    try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 400)); // 编码器收尾缓冲
+      const uri = recording.getURI() ?? "";
+      await recording.stopAndUnloadAsync();
+      setRecording(null);
+      if (heldMs < 500) {
+        setFeedback({ ok: false, why: "按住的时间太短——按住说话，松开判定" });
+        setBusy(false);
+        return;
+      }
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      await uploadWord(base64, ex.wordIndex);
+    } catch {
+      setRecording(null);
+      setBusy(false);
+    }
+  }, [exercises, exIdx, recording, uploadWord]);
 
   if (loading || !challenge) {
     return <View style={styles.center}><ActivityIndicator color="#8fd3ff" /></View>;
@@ -217,7 +246,23 @@ export default function ChallengePlay(): JSX.Element {
         <Text style={styles.partyTitle}>闯关成功！</Text>
         <Text style={styles.partyReward}>+{finished.rewardCents} 厘已入账</Text>
         <Text style={styles.partyBalance}>余额 {finished.balance} 积分</Text>
-        <Pressable style={styles.bigBtn} onPress={() => router.back()}>
+        <Pressable style={styles.bigBtn} onPress={() => {
+          void (async () => {
+            if (!token || !challenge) { router.back(); return; }
+            try {
+              const lang = (challenge.id.startsWith("ja-") ? "ja" : challenge.id.startsWith("ko-") ? "ko" : "en") as "en" | "ja" | "ko";
+              const res = await api.challenges(token, lang);
+              const next = res.challenges.find((c) => c.state === "open");
+              if (next) {
+                router.replace({ pathname: "/challenge/[id]", params: { id: next.id } });
+              } else {
+                router.back();
+              }
+            } catch {
+              router.back();
+            }
+          })();
+        }}>
           <Text style={styles.bigBtnText}>继续下一关 →</Text>
         </Pressable>
       </View>
@@ -399,8 +444,20 @@ export default function ChallengePlay(): JSX.Element {
 
       {/* 操作区 */}
       {ex.type === "read" && (
-        <Pressable style={[styles.micBtn, recording && styles.micBtnRec, busy && styles.micBtnBusy]} disabled={busy} onPress={() => void readWord()}>
-          <Text style={styles.micText}>{busy ? "🤔 AI 听取中…" : recording ? "说完点这里" : "🎤 说这个词"}</Text>
+        <Pressable
+          style={[styles.micBtn, recording && styles.micBtnRec, busy && styles.micBtnBusy]}
+          disabled={busy}
+          onPressIn={() => void readPressIn()}
+          onPressOut={() => void readPressOut()}
+        >
+          <Text style={styles.micText}>
+            {busy ? "🤔 AI 听取中…" : recording ? "松开即判定" : "🎤 按住说话"}
+          </Text>
+        </Pressable>
+      )}
+      {ex.type === "read" && pendingUpload && (
+        <Pressable style={[styles.micBtn, { backgroundColor: "#e08f3a" }]} disabled={busy} onPress={() => void uploadWord(pendingUpload.base64, pendingUpload.wordIndex)}>
+          <Text style={styles.micText}>⚠️ 上传失败，点此重传（无需重说）</Text>
         </Pressable>
       )}
       {ex.type === "mc" && (
@@ -453,7 +510,7 @@ export default function ChallengePlay(): JSX.Element {
           <Text style={styles.nextText}>知道了 →</Text>
         </Pressable>
       )}
-      {ex.type === "read" && !feedback && !recording && !busy && (
+      {ex.type === "read" && !feedback && !recording && !busy && !pendingUpload && (
         <Pressable onPress={skipRead}>
           <Text style={styles.skipText}>跳过 →</Text>
         </Pressable>

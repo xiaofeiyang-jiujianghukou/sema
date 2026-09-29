@@ -111,9 +111,12 @@ export class ChallengeService {
     const out: ChallengeProgress[] = [];
     for (const tier of TIER_ORDER) {
       const tierChallenges = all.filter((c) => c.tier === tier).sort((a, b) => a.order - b.order);
-      let unlocked = true;
+      // 双轨解锁：词关链与对话关链各自顺序推进——词关过了下一单元就开，
+      // 对话关是并行挑战线（不再卡住课程主线）
+      const chainUnlocked: Record<string, boolean> = { words: true, dialogue: true };
       for (const c of tierChallenges) {
-        const state = completed.has(c.id) ? "completed" : unlocked ? "open" : "locked";
+        const chain = c.id.endsWith("-dialogue") ? "dialogue" : "words";
+        const state = completed.has(c.id) ? "completed" : chainUnlocked[chain] ? "open" : "locked";
         out.push({
           id: c.id,
           tier: c.tier,
@@ -127,7 +130,7 @@ export class ChallengeService {
           words: c.words?.map((w) => ({ text: w.text, display: w.display })) ?? null,
           scenarioId: c.scenarioId,
         });
-        if (state !== "completed") unlocked = false;
+        if (state !== "completed") chainUnlocked[chain] = false;
       }
     }
     return out;
