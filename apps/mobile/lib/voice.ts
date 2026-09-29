@@ -25,6 +25,8 @@ export interface VoiceHandlers {
 export class VoiceClient {
   private ws: WebSocket | null = null;
   private ready = false;
+  /** 主动关闭标记：close()/stop() 触发的 onclose/onerror 不当错误处理 */
+  private intentionalClose = false;
   private handlers: VoiceHandlers;
 
   constructor(handlers: VoiceHandlers) {
@@ -49,9 +51,18 @@ export class VoiceClient {
         this.handlers.onAudioChunk(event.data as ArrayBuffer);
       }
     };
-    ws.onerror = () => this.handlers.onError("语音连接出错，请检查网络与后端服务");
+    ws.onerror = () => {
+      if (this.intentionalClose) return; // 主动关闭引发的 error 不提示
+      this.handlers.onError("语音连接出错，请检查网络与后端服务");
+    };
     ws.onclose = (ev: WebSocketCloseEvent) => {
-      console.error(`[voice] WS 断开: code=${(ev as { code?: number }).code} reason=${(ev as { reason?: string }).reason ?? "-"}`);
+      const code = (ev as { code?: number }).code;
+      if (this.intentionalClose || code === 1000) {
+        console.log(`[voice] WS 正常关闭(code=${code})`); // 主动结束/正常关闭不是错误
+      } else {
+        console.error(`[voice] WS 异常断开: code=${code} reason=${(ev as { reason?: string }).reason ?? "-"}`);
+        this.handlers.onError("语音连接已断开，请关掉语音重开一次");
+      }
       this.ws = null;
       this.ready = false;
     };
@@ -124,6 +135,7 @@ export class VoiceClient {
   }
 
   close(): void {
+    this.intentionalClose = true;
     try {
       this.ws?.close();
     } catch {
