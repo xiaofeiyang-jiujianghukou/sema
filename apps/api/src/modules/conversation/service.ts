@@ -134,8 +134,8 @@ export class ConversationService {
     private readonly wallets: WalletService,
     private readonly router: TaskRouter,
     private readonly now: () => number = Date.now,
-    /** 学习者水平（未注入按 basic 处理）：决定回复难度与中文辅助 */
-    private readonly getUserLevel?: (userId: string) => Promise<"zero" | "basic" | "pro" | undefined>,
+    /** 学习者水平（未注入按 basic 处理）：按（用户，语言）取——每门课各自的水平 */
+    private readonly getUserLevel?: (userId: string, lang: string) => Promise<"zero" | "basic" | "pro" | undefined>,
   ) {}
 
   async start(userId: string, scenarioId: string): Promise<StartResult> {
@@ -237,8 +237,10 @@ export class ConversationService {
     session.history.push({ role: "user", content: text });
     const decision = this.router.route("dialogue");
 
-    // 学习者水平脚手架：只影响本次调用的额外 system 指令，不写入历史
-    const level = this.getUserLevel ? await this.getUserLevel(session.userId) : undefined;
+    // 学习者水平脚手架：只影响本次调用的额外 system 指令，不写入历史。
+    // 水平按情景语言取——同一用户英语进阶、日语可以零基础
+    const lang = getScenario(session.scenarioId)?.targetLang ?? "en";
+    const level = this.getUserLevel ? await this.getUserLevel(session.userId, lang) : undefined;
     const scaffold =
       level === "zero"
         ? [

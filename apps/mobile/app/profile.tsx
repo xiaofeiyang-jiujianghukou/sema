@@ -5,16 +5,16 @@ import type { JSX } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ApiError, api, auth, type LearningProfile, type WalletInfo } from "../lib/api";
+import { ApiError, api, auth, type LearningProfile, type UserLevels, type WalletInfo } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 export default function Profile(): JSX.Element {
   const router = useRouter();
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, updateUser } = useAuth();
   const [stats, setStats] = useState<LearningProfile | null>(null);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState<"zero" | "basic" | "pro" | undefined>(user?.level);
+  const [levels, setLevels] = useState<UserLevels>(user?.levels ?? {});
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!token) return;
@@ -63,26 +63,33 @@ export default function Profile(): JSX.Element {
       </View>
 
       <View style={styles.levelCard}>
-        <Text style={styles.levelTitle}>我的水平</Text>
-        <Text style={styles.levelDesc}>零基础：AI 自动放慢+中文翻译+建议句；入门：中文翻译；进阶：无辅助</Text>
-        <View style={styles.levelRow}>
-          {([["zero", "零基础"], ["basic", "入门"], ["pro", "进阶"]] as const).map(([value, label]) => (
-            <Pressable
-              key={value}
-              style={[styles.levelBtn, level === value && styles.levelBtnOn]}
-              onPress={() => {
-                setLevel(value);
-                if (token) {
-                  void api.updateMe(token, { level: value }).catch((err: unknown) => {
-                    Alert.alert("保存失败", err instanceof ApiError ? err.message : String(err));
-                  });
-                }
-              }}
-            >
-              <Text style={[styles.levelBtnText, level === value && styles.levelBtnTextOn]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.levelTitle}>各科水平</Text>
+        <Text style={styles.levelDesc}>每门课单独定级——英语进阶不妨碍日语零基础。改某门课的水平会同时把它设为当前课程。零基础：AI 放慢+翻译+建议句；入门：翻译；进阶：无辅助</Text>
+        {([["en", "英语"], ["ja", "日语"], ["ko", "韩语"]] as const).map(([lang, label]) => (
+          <View key={lang} style={styles.levelLangRow}>
+            <Text style={styles.levelLang}>{label}</Text>
+            <View style={styles.levelRow}>
+              {([["zero", "零基础"], ["basic", "入门"], ["pro", "进阶"]] as const).map(([value, lvLabel]) => (
+                <Pressable
+                  key={value}
+                  style={[styles.levelBtn, levels[lang] === value && styles.levelBtnOn]}
+                  onPress={() => {
+                    setLevels((prev) => ({ ...prev, [lang]: value }));
+                    if (token) {
+                      void api.updateMe(token, { targetLang: lang, level: value })
+                        .then((u) => updateUser(u))
+                        .catch((err: unknown) => {
+                          Alert.alert("保存失败", err instanceof ApiError ? err.message : String(err));
+                        });
+                    }
+                  }}
+                >
+                  <Text style={[styles.levelBtnText, levels[lang] === value && styles.levelBtnTextOn]}>{lvLabel}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
       </View>
 
       <View style={styles.balanceCard}>
@@ -144,6 +151,8 @@ const styles = StyleSheet.create({
   levelCard: { backgroundColor: "#132a3d", borderRadius: 14, padding: 14, gap: 8 },
   levelTitle: { color: "#f2f7fa", fontSize: 14, fontWeight: "600" },
   levelDesc: { color: "#7a92a8", fontSize: 11, lineHeight: 16 },
+  levelLangRow: { gap: 4 },
+  levelLang: { color: "#9fb8c9", fontSize: 12 },
   levelRow: { flexDirection: "row", gap: 8 },
   levelBtn: { flex: 1, borderRadius: 8, paddingVertical: 8, alignItems: "center", backgroundColor: "#0d2233", borderWidth: 1, borderColor: "#1f3d55" },
   levelBtnOn: { backgroundColor: "#1a73e8", borderColor: "#1a73e8" },

@@ -36,7 +36,8 @@ export default function Scenarios(): JSX.Element {
     setLoading(true);
     api.scenarios(lang === "all" ? undefined : lang)
       .then((res) => {
-        const order = user?.level ? LEVEL_ORDER[user.level] : null;
+        const lv = lang !== "all" ? user?.levels?.[lang] : undefined;
+        const order = lv ? LEVEL_ORDER[lv] : null;
         const sorted = order
           ? [...res.scenarios].sort((a, b) => order.indexOf(a.difficulty) - order.indexOf(b.difficulty))
           : res.scenarios;
@@ -76,16 +77,31 @@ export default function Scenarios(): JSX.Element {
         ))}
       </View>
 
-      {user?.level === "zero" && lang !== "all" && (
-        <View style={styles.recoBanner}>
-          <Text style={styles.recoText}>📚 零基础模式：已按难度排序，从最上面的情景开始最合适</Text>
-        </View>
-      )}
-      {user?.level === "pro" && lang !== "all" && (
-        <View style={styles.recoBanner}>
-          <Text style={styles.recoText}>⚡ 进阶模式：真实语速对话，B1 情景排前面了</Text>
-        </View>
-      )}
+      {(() => {
+        const lv = lang !== "all" ? user?.levels?.[lang] : undefined;
+        if (lv === "zero") {
+          return (
+            <View style={styles.recoBanner}>
+              <Text style={styles.recoText}>📚 零基础模式：已按难度排序，从最上面的情景开始最合适</Text>
+            </View>
+          );
+        }
+        if (lv === "pro") {
+          return (
+            <View style={styles.recoBanner}>
+              <Text style={styles.recoText}>⚡ 进阶模式：真实语速对话，B1 情景排前面了</Text>
+            </View>
+          );
+        }
+        if (lang !== "all" && !lv) {
+          return (
+            <Pressable style={styles.recoBanner} onPress={() => router.push("/profile")}>
+              <Text style={styles.recoText}>📌 这门课还没定水平——去「我的」设置，AI 才好拿捏难度</Text>
+            </Pressable>
+          );
+        }
+        return null;
+      })()}
 
       {loading && <ActivityIndicator color="#8fd3ff" style={{ marginTop: 32 }} />}
       {error && <Text style={styles.error}>{error}</Text>}

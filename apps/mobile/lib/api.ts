@@ -10,13 +10,16 @@ import * as SecureStore from "expo-secure-store";
 export const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:8787";
 const TOKEN_KEY = "sema.session.token";
 
+/** 每门语言各自的水平——英语进阶的人学日语可以是零基础 */
+export type UserLevels = { en?: "zero" | "basic" | "pro"; ja?: "zero" | "basic" | "pro"; ko?: "zero" | "basic" | "pro" };
+
 export interface PublicUser {
   id: string;
   phone: string;
   nickname: string;
   targetLang: "en" | "ja" | "ko";
-  /** 学习者水平：决定对话难度与中文辅助（零基础=译+建议句） */
-  level?: "zero" | "basic" | "pro" | undefined;
+  /** 各语言水平（决定对话难度与中文辅助；零基础=译+建议句） */
+  levels?: UserLevels | undefined;
   createdAtMs: number;
 }
 
@@ -221,6 +224,7 @@ export const api = {
     request<{ term: string; lecture: VocabLecture; cached: boolean; chargedCents: number }>(`/v1/vocab/${cardId}/lecture`, { method: "POST", token }),
   updateMe: (token: string, patch: { nickname?: string; targetLang?: "en" | "ja" | "ko"; level?: "zero" | "basic" | "pro" }) =>
     request<PublicUser>("/v1/auth/me", { method: "PATCH", token, body: JSON.stringify(patch) }),
+
   stats: (token: string) => request<LearningProfile>("/v1/stats", { token }),
   wallet: (token: string) => request<WalletInfo>("/v1/wallet", { token }),
 };

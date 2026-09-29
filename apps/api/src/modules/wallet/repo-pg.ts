@@ -15,7 +15,7 @@
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import type { LedgerEntry, LedgerEntryInput, WalletRepo, WalletSnapshot } from "./repo.js";
-import type { UserAccount, UserRepo } from "../auth/service.js";
+import type { UserAccount, UserLevels, UserRepo } from "../auth/service.js";
 
 export class BalanceConflictError extends Error {
   constructor(readonly userId: string) {
@@ -158,13 +158,21 @@ interface UserRow {
   phone: string | null;
   display_name: string;
   target_lang: string | null;
-  level: string | null;
+  levels: string | null;
   password_hash: string | null;
   password_salt: string | null;
   created_at: Date;
 }
 
 const rowToUser = (r: UserRow): UserAccount => {
+  let levels: UserLevels | undefined;
+  if (r.levels) {
+    try {
+      levels = JSON.parse(r.levels) as UserLevels;
+    } catch {
+      levels = undefined; // 脏数据按未设置处理
+    }
+  }
   const user: UserAccount = {
     id: r.id,
     phone: r.phone ?? "",
@@ -174,7 +182,7 @@ const rowToUser = (r: UserRow): UserAccount => {
     passwordSalt: r.password_salt,
     createdAtMs: new Date(r.created_at).getTime(),
   };
-  if (r.level) user.level = r.level as NonNullable<UserAccount["level"]>;
+  if (levels) user.levels = levels;
   return user;
 };
 
@@ -184,14 +192,14 @@ export class DrizzleUserRepo implements UserRepo {
   async create(user: UserAccount): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO users (id, phone, display_name, target_lang, level, password_hash, password_salt, created_at) " +
+        "INSERT INTO users (id, phone, display_name, target_lang, levels, password_hash, password_salt, created_at) " +
           "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [
           user.id,
           user.phone,
           user.nickname,
           user.targetLang,
-          user.level ?? null,
+          user.levels ? JSON.stringify(user.levels) : null,
           user.passwordHash,
           user.passwordSalt,
           new Date(user.createdAtMs),
@@ -205,7 +213,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async get(id: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, level, password_hash, password_salt, created_at FROM users WHERE id = $1",
+      "SELECT id, phone, display_name, target_lang, levels, password_hash, password_salt, created_at FROM users WHERE id = $1",
       [id],
     );
     return rows[0] ? rowToUser(rows[0]) : null;
@@ -213,7 +221,7 @@ export class DrizzleUserRepo implements UserRepo {
 
   async findByPhone(phone: string): Promise<UserAccount | null> {
     const { rows } = await this.pool.query<UserRow>(
-      "SELECT id, phone, display_name, target_lang, level, password_hash, password_salt, created_at FROM users WHERE phone = $1",
+      "SELECT id, phone, display_name, target_lang, levels, password_hash, password_salt, created_at FROM users WHERE phone = $1",
       [phone],
     );
     return rows[0] ? rowToUser(rows[0]) : null;
@@ -221,8 +229,8 @@ export class DrizzleUserRepo implements UserRepo {
 
   async save(user: UserAccount): Promise<void> {
     await this.pool.query(
-      "UPDATE users SET display_name = $2, target_lang = $3, level = $4, password_hash = $5, password_salt = $6 WHERE id = $1",
-      [user.id, user.nickname, user.targetLang, user.level ?? null, user.passwordHash, user.passwordSalt],
+      "UPDATE users SET display_name = $2, target_lang = $3, levels = $4, password_hash = $5, password_salt = $6 WHERE id = $1",
+      [user.id, user.nickname, user.targetLang, user.levels ? JSON.stringify(user.levels) : null, user.passwordHash, user.passwordSalt],
     );
   }
 

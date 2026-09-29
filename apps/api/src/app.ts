@@ -22,7 +22,7 @@ import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
-import { AuthService, MemoryUserRepo, ConsoleSmsSender, type AccountDeletionRepos, type SmsSender } from "./modules/auth/service.js";
+import { AuthService, MemoryUserRepo, ConsoleSmsSender, levelFor, type AccountDeletionRepos, type SmsSender } from "./modules/auth/service.js";
 import { authRoutes } from "./routes/auth.js";
 import type { VADOptions } from "./modules/realtime/session.js";
 import { WalletService } from "./modules/wallet/service.js";
@@ -148,7 +148,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.wallets,
       llmRouter,
       clock,
-      async (userId) => (await userRepo.get(userId))?.level,
+      async (userId, lang) => {
+        const u = await userRepo.get(userId);
+        return u ? levelFor(u, lang as TargetLang) : undefined;
+      },
     ),
   );
   app.decorate("speech", options.speech ?? defaultSpeech());
@@ -200,6 +203,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     // 登录态持久化：重启不掉线（auth_tokens 表，启动预热内存 Map，鉴权查询保持同步）
     await dbPool.query("CREATE TABLE IF NOT EXISTS auth_tokens (token text PRIMARY KEY, user_id text NOT NULL, expires_at_ms bigint NOT NULL)");
     await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS level text");
+    await dbPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS levels jsonb");
     await auth.attachTokenStore({
       async put(token, userId, expiresAtMs) {
         await dbPool.query(

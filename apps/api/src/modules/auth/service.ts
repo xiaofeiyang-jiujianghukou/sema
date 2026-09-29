@@ -21,14 +21,24 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** 学习者水平：zero=零基础（译+建议句）、basic=入门（译）、pro=进阶（无辅助） */
 export type UserLevel = "zero" | "basic" | "pro";
 
+/** 每门语言各自的水平——英语进阶的人学日语可以是零基础 */
+export type UserLevels = Partial<Record<TargetLang, UserLevel>>;
+
+/** 取某门语言的水平：levels[lang] 优先，兼容旧全局 level 字段 */
+export function levelFor(user: Pick<UserAccount, "levels" | "level">, lang: TargetLang): UserLevel | undefined {
+  return user.levels?.[lang] ?? user.level;
+}
+
 export interface UserAccount {
   id: string;
   phone: string;
   nickname: string;
   /** 目标语言偏好（注册后可在设置里改；情景选择独立于此） */
   targetLang: TargetLang;
-  /** 学习者水平（未设置按 basic 处理） */
+  /** 旧全局水平（已废弃，仅作 levels 缺失时的兼容回退） */
   level?: UserLevel;
+  /** 各语言水平（当前生效存储） */
+  levels?: UserLevels;
   passwordHash: string | null; // null = 仅验证码登录（未设密码）
   passwordSalt: string | null;
   createdAtMs: number;
@@ -136,7 +146,7 @@ export interface PublicUser {
   phone: string;
   nickname: string;
   targetLang: TargetLang;
-  level?: UserLevel | undefined;
+  levels?: UserLevels | undefined;
   createdAtMs: number;
 }
 
@@ -146,7 +156,7 @@ function toPublic(user: UserAccount): PublicUser {
     phone: user.phone,
     nickname: user.nickname,
     targetLang: user.targetLang,
-    ...(user.level ? { level: user.level } : {}),
+    ...(user.levels ? { levels: user.levels } : {}),
     createdAtMs: user.createdAtMs,
   };
 }
@@ -279,7 +289,11 @@ export class AuthService {
     if (!user) throw new AuthError("TOKEN_INVALID");
     if (patch.nickname !== undefined) user.nickname = patch.nickname.trim().slice(0, 24) || user.nickname;
     if (patch.targetLang !== undefined) user.targetLang = patch.targetLang;
-    if (patch.level !== undefined) user.level = patch.level;
+    if (patch.level !== undefined) {
+      // level 归属语言：显式传 targetLang 时写那门课，否则写当前课程
+      const lang = patch.targetLang ?? user.targetLang;
+      user.levels = { ...user.levels, [lang]: patch.level };
+    }
     await this.deps.users.save(user);
     return toPublic(user);
   }

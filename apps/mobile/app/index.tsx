@@ -28,7 +28,8 @@ export default function Index(): JSX.Element {
     if (user === undefined) return; // 启动检查中
     const timer = setTimeout(() => {
       // 首次使用（未完成选语言+定级引导）→ 引导页；否则进情景列表
-      router.replace(user ? (user.level ? "/scenarios" : "/onboarding") : "/login");
+      const hasLevels = user !== null && user.levels !== undefined && Object.keys(user.levels).length > 0;
+      router.replace(user ? (hasLevels ? "/scenarios" : "/onboarding") : "/login");
     }, health.status === "checking" ? 600 : 0);
     return () => clearTimeout(timer);
   }, [user, health.status, router]);
@@ -39,7 +40,7 @@ export default function Index(): JSX.Element {
       <Text style={styles.tagline}>SEMA · 想说就说嘛</Text>
       <Text style={styles.slogan}>用一次，付一次 · 聊到停不下来</Text>
       <View style={styles.healthCard}>
-        <Text style={styles.healthTitle}>API（{API_BASE}）· build b20</Text>
+        <Text style={styles.healthTitle}>API（{API_BASE}）· build b21</Text>
         {health.status === "checking" && <ActivityIndicator color="#8fd3ff" />}
         {health.status === "up" && <Text style={styles.healthOk}>● 在线</Text>}
         {health.status === "down" && <Text style={styles.healthDown}>○ 未连接（{health.message}）</Text>}
