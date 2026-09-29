@@ -260,9 +260,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         try {
           const fs = await import("node:fs/promises");
           const stamp = Date.now();
-          await fs.writeFile(`/tmp/sema-silent-${stamp}.aac`, Buffer.from(audioBase64, "base64"));
-          await fs.writeFile(`/tmp/sema-silent-${stamp}.pcm`, raw);
-          app.log.warn({ aac: `/tmp/sema-silent-${stamp}.aac` }, "收到纯静音录音，已落盘");
+          const dir = "/home/xiaofeiyang/AIWorkSpace/LanguageWorkspace/sema/.diag";
+          await fs.mkdir(dir, { recursive: true });
+          await fs.writeFile(`${dir}/silent-${stamp}.aac`, Buffer.from(audioBase64, "base64"));
+          await fs.writeFile(`${dir}/silent-${stamp}.pcm`, raw);
+          app.log.warn({ aac: `${dir}/silent-${stamp}.aac` }, "收到纯静音录音，已落盘");
         } catch { /* 诊断失败不影响主流程 */ }
       }
       const recognizer = (options.speech ?? app.speech).asr.createRecognizer({

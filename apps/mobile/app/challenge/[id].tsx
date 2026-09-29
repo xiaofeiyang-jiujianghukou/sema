@@ -223,6 +223,7 @@ export default function ChallengePlay(): JSX.Element {
       try { await soundRef.current?.stopAsync(); } catch { /* 已停止 */ }
       try { await soundRef.current?.unloadAsync(); } catch { /* 已释放 */ }
       soundRef.current = null;
+      // 与 use-voice-mode 逐字对齐：模式设置紧贴 createAsync，中间不插其他异步
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -270,13 +271,27 @@ export default function ChallengePlay(): JSX.Element {
   // ══ 听音播放（词/句共用） ══
   const playAudio = useCallback(async (wordIndex: number, sentence: boolean): Promise<void> => {
     if (!token || !id) return;
+    let file = "";
     try {
       const res = await api.challengeAudio(token, id, wordIndex, sentence);
+      // 与聊天一致的成熟路径：落地缓存文件播放（data:URI 在部分安卓实现上
+      // 会占住音频会话，导致后续 Recording 拿到全零输入源）
+      file = `${FileSystem.cacheDirectory}sema-chal-${Date.now()}.mp3`;
+      await FileSystem.writeAsStringAsync(file, res.audioBase64, { encoding: FileSystem.EncodingType.Base64 });
       await soundRef.current?.unloadAsync();
-      const { sound: snd } = await Audio.Sound.createAsync({ uri: `data:audio/mpeg;base64,${res.audioBase64}` });
+      const { sound: snd } = await Audio.Sound.createAsync({ uri: file });
       soundRef.current = snd;
+      snd.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          void snd.unloadAsync().then(() => {
+            void FileSystem.deleteAsync(file, { idempotent: true });
+            if (soundRef.current === snd) soundRef.current = null;
+          });
+        }
+      });
       await snd.playAsync();
     } catch (err) {
+      if (file) void FileSystem.deleteAsync(file, { idempotent: true });
       Alert.alert("播放失败", err instanceof ApiError ? err.message : String(err));
     }
   }, [token, id]);
