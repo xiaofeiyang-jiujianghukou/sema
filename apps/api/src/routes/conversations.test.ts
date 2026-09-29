@@ -45,12 +45,7 @@ describe("会话 API 冒烟", () => {
   });
 
   it("完整闭环：开始 → 明码标价 → 两轮对话 → 账单", async () => {
-    await app.inject({
-      method: "POST",
-      url: `/v1/wallet/grant?userId=${userC1.userId}`,
-      payload: { cents: SIGNUP_GRANT_CENTS, reason: "注册体验金" },
-    });
-
+    // 注册接口已自动赠 30 积分，无需手动发放
     const start = await app.inject({
       method: "POST",
       url: "/v1/conversations",
@@ -107,11 +102,6 @@ describe("会话 API 冒烟", () => {
   });
 
   it("对话中断网扣费：余额不足 409 且可充值续聊", async () => {
-    await app.inject({
-      method: "POST",
-      url: `/v1/wallet/grant?userId=${userC2.userId}`,
-      payload: { cents: 5, reason: "不够一轮文字（10 厘）" },
-    });
     const start = await app.inject({
       method: "POST",
       url: "/v1/conversations",
@@ -120,11 +110,17 @@ describe("会话 API 冒烟", () => {
     });
     const sessionId = start.json().sessionId;
 
-    const blocked = await app.inject({
-      method: "POST",
-      url: `/v1/conversations/${sessionId}/turns`,
-      payload: { text: "Excuse me..." },
-    });
+    // 真实耗尽：30 积分 = 300 轮文字，逐轮发到 INSUFFICIENT_FUNDS 为止
+    let blocked;
+    for (let i = 0; i < 320; i += 1) {
+      blocked = await app.inject({
+        method: "POST",
+        url: `/v1/conversations/${sessionId}/turns`,
+        payload: { text: `msg ${i}` },
+      });
+      if (blocked.statusCode === 409) break;
+    }
+
     expect(blocked.statusCode).toBe(409);
     expect(blocked.json().error.code).toBe("INSUFFICIENT_FUNDS");
 

@@ -11,6 +11,7 @@
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
+import { SIGNUP_GRANT_CENTS } from "@sema/shared";
 import { AuthError } from "../modules/auth/service.js";
 
 const phoneSchema = z.object({ phone: z.string().regex(/^1[3-9]\d{9}$/, "手机号格式不正确") });
@@ -89,12 +90,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST", message: "注册信息不完整（密码 8-64 位）" });
     try {
-      return reply.code(201).send(await app.auth.register({
+      const result = await app.auth.register({
         phone: parsed.data.phone,
         code: parsed.data.code,
         password: parsed.data.password,
         ...(parsed.data.nickname !== undefined ? { nickname: parsed.data.nickname } : {}),
-      }));
+      });
+      // 注册体验金（幂等：同用户重复发放不会到账两次）
+      try {
+        await app.wallets.grant(result.user.id, SIGNUP_GRANT_CENTS, "注册体验金", `signup:${result.user.id}`);
+      } catch (grantErr) {
+        req.log.error(grantErr, "注册体验金发放失败（不影响注册结果）");
+      }
+      return reply.code(201).send(result);
     } catch (err) {
       return authErrorReply(reply, err) ?? reply.code(500).send({ error: "INTERNAL" });
     }
