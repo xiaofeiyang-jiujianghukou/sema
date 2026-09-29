@@ -22,7 +22,7 @@ import { ReviewService, MemoryReviewRepo } from "./modules/review/service.js";
 import { VocabBookService, MemoryVocabRepo } from "./modules/vocab/service.js";
 import { LectureService } from "./modules/vocab/lecture.js";
 import { StatsService } from "./modules/stats/service.js";
-import { AuthService, MemoryUserRepo, ConsoleSmsSender, levelFor, type AccountDeletionRepos, type SmsSender } from "./modules/auth/service.js";
+import { AuthService, MemoryUserRepo, ConsoleSmsSender, levelFor, type AccountDeletionRepos, type SmsSender, type UserRepo } from "./modules/auth/service.js";
 import { ChallengeService, MemoryChallengeRepo, DrizzleChallengeRepo } from "./modules/challenges/service.js";
 import { challengeRoutes } from "./routes/challenges.js";
 import { aacToPcm } from "./modules/realtime/transcode.js";
@@ -59,6 +59,7 @@ declare module "fastify" {
     messageTranslate: (text: string, lang: "en" | "ja" | "ko") => Promise<{ translation: string }>;
     stats: StatsService;
     auth: AuthService;
+    users: UserRepo;
     speech: { asr: ASRProvider; tts: TTSProvider };
     /** 目标语言 → 语音参数（ASR 语言提示 + TTS 音色） */
     speechForLang: (lang: "en" | "ja" | "ko") => { language: string; speaker?: string };
@@ -158,6 +159,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     ),
   );
   app.decorate("speech", options.speech ?? defaultSpeech());
+  app.decorate("users", userRepo as UserRepo);
   app.decorate("vadOptions", options.vad);
 
   // 目标语言 → 语音参数。ASR 语言提示显著影响识别准确率；TTS 音色按

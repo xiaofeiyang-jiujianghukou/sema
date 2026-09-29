@@ -3,7 +3,7 @@
  * 奖励走钱包 grant（幂等键 challenge:<id>），过关记录一次性（user_challenges 主键约束）
  */
 import type { Challenge, Exercise, CheckResult } from "../../content/challenges.js";
-import { getChallenge, getUnit, unitExercises, checkExercise, checkPair } from "../../content/challenges.js";
+import { getChallenge, getUnit, unitExercises, checkExercise, checkPair, type ExerciseLevel } from "../../content/challenges.js";
 import type { TargetLang } from "../../content/scenarios.js";
 
 export interface ChallengeProgress {
@@ -91,9 +91,9 @@ export type { Exercise, CheckResult };
 export class ChallengeService {
   constructor(private readonly deps: ChallengeDeps) {}
 
-  /** 混合练习题目（答案不下发，判题在服务端） */
-  exercises(challengeId: string): Exercise[] {
-    return unitExercises(challengeId);
+  /** 混合练习题目（答案不下发，判题在服务端；难度随水平） */
+  exercises(challengeId: string, level: ExerciseLevel = "zero"): Exercise[] {
+    return unitExercises(challengeId, level);
   }
 
   /** 混合练习判题（read 题走 verifyWord 音频通道） */
@@ -173,10 +173,11 @@ export class ChallengeService {
   }
 
   /** 初级过关领取（客户端在 matched ≥ 门槛后调用） */
-  async claimBeginner(userId: string, challengeId: string, matched: number, all: Challenge[]): Promise<{ rewardedCents: number; alreadyDone: boolean }> {
+  async claimBeginner(userId: string, challengeId: string, matched: number, all: Challenge[], threshold?: number): Promise<{ rewardedCents: number; alreadyDone: boolean }> {
     const c = getChallenge(challengeId);
     if (!c || c.tier !== "beginner") throw new Error("挑战不存在");
-    if (matched < c.requiredTurns) throw new Error(`还需读对 ${c.requiredTurns - matched} 个词`);
+    const need = threshold ?? c.requiredTurns;
+    if (matched < need) throw new Error(`还差 ${need - matched} 题`);
     return this.finish(userId, c);
   }
 

@@ -42,9 +42,18 @@ interface CurriculumUnit {
   id: string;
   order: number;
   title: string;
-  words: Array<{ term: string; reading?: string; meaning: string; example: string; exampleZh: string; variants?: string[] }>;
+  words: CurriculumWord[];
   patterns: Array<{ pattern: string; meaning: string; example: string; exampleZh: string }>;
   dialogueGoal: string;
+}
+
+interface CurriculumWord {
+  term: string;
+  reading?: string;
+  meaning: string;
+  example: string;
+  exampleZh: string;
+  variants?: string[];
 }
 
 interface Curriculum {
@@ -131,7 +140,8 @@ export type Exercise =
   | { type: "mc"; prompt: string; options: string[]; wordIndex: number }
   | { type: "tf"; prompt: string; wordIndex: number; shown: string }
   | { type: "cloze"; sentence: string; options: string[]; wordIndex: number }
-  | { type: "build"; sentence: string; blank: string; options: string[]; hint: string }
+  | { type: "build"; tiles: string[]; hint: string; sentence: string }
+  | { type: "listen"; wordIndex: number; options: string[] }
   | { type: "match"; left: string[]; right: string[]; wordIndices: number[] };
 
 export interface CheckResult {
@@ -201,23 +211,55 @@ export function splitTiles(sentence: string): string[] {
   return cleaned;
 }
 
-/** 生成一套混合练习（跟读×2 选择×2 判断×2 完形×2 造句×1 连线×1 = 10 题） */
-export function unitExercises(challengeId: string): Exercise[] {
+/** 按单元 id 找到所属教材，返回全书词表（进阶难度：干扰项来自全书） */
+export function getBookWords(unitId: string): CurriculumWord[] {
+  for (const c of CURRICULA) {
+    if (c.units.some((x) => x.id === unitId)) return c.units.flatMap((u) => u.words);
+  }
+  return [];
+}
+
+/** 干扰项：从词池里挑 n 个不同于正确项的释义/词 */
+function pickDistractors(pool: CurriculumWord[], excludeTerm: string, get: (w: CurriculumWord) => string, n: number, rand: () => number): string[] {
+  const out: string[] = [];
+  for (const w of shuffled(pool, rand)) {
+    const v = get(w);
+    if (v !== excludeTerm && !out.includes(v) && out.length < n) out.push(v);
+  }
+  return out;
+}
+
+export type ExerciseLevel = "zero" | "basic" | "pro";
+
+/** 生成一套混合练习（跟读×2 听音辨词×1 选择×2 判断×2 完形×1 造句×1 连线×1 = 10 题）
+ *  难度随水平：入门 5 选项/进阶 6 选项；进阶干扰项来自全书、跟读卡不显示罗马音 */
+export function unitExercises(challengeId: string, level: ExerciseLevel = "zero"): Exercise[] {
   const unitId = challengeId.replace(/-(words|dialogue)$/, "");
   const unit = getUnit(unitId);
   if (!unit) throw new Error("课程单元不存在");
   const rand = seededRandom(challengeId);
   const words = unit.words;
+  const optN = level === "pro" ? 6 : level === "basic" ? 5 : 4;
+  const pool = level === "pro" ? getBookWords(unitId) : words;
   const out: Exercise[] = [];
 
-  // 跟读 ×2
+  // 跟读 ×2（进阶：不显示罗马音提示）
   for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
-    out.push({ type: "read", wordIndex: wi, word: words[wi]!.term, display: `${words[wi]!.term}${words[wi]!.reading ? `（${words[wi]!.reading}）` : ""} · ${words[wi]!.meaning}` });
+    const w = words[wi]!;
+    out.push({ type: "read", wordIndex: wi, word: w.term, display: `${w.term}${w.reading && level !== "pro" ? `（${w.reading}）` : ""} · ${w.meaning}` });
+  }
+  // 听音辨词 ×1：AI 读词 → 选听到的词（进阶干扰项来自全书）
+  {
+    const wi = Math.floor(rand() * words.length);
+    const w = words[wi]!;
+    const distractors = pickDistractors(pool, w.term, (x) => x.term, optN - 1, rand);
+    out.push({ type: "listen", wordIndex: wi, options: shuffled([w.term, ...distractors], rand) });
   }
   // 选择 ×2：词→义
   for (const wi of shuffled(words.map((_, i) => i), rand).slice(0, 2)) {
-    const distractors = shuffled(words.filter((_, j) => j !== wi).map((w) => w.meaning), rand).slice(0, 3);
-    out.push({ type: "mc", prompt: `「${words[wi]!.term}」的意思是？`, options: shuffled([words[wi]!.meaning, ...distractors], rand), wordIndex: wi });
+    const w = words[wi]!;
+    const distractors = pickDistractors(pool, w.meaning, (x) => x.meaning, optN - 1, rand);
+    out.push({ type: "mc", prompt: `「${w.term}」的意思是？`, options: shuffled([w.meaning, ...distractors], rand), wordIndex: wi });
   }
   // 判断 ×2：一半正确一半张冠李戴
   for (let k = 0; k < 2; k++) {
@@ -236,25 +278,21 @@ export function unitExercises(challengeId: string): Exercise[] {
   for (const wi of clozePool.slice(0, clozeCount)) {
     mcUsed.add(wi);
     const w = words[wi]!;
-    const distractors = shuffled(words.filter((x) => x.term !== w.term).map((x) => x.term), rand).slice(0, 3);
+    const distractors = pickDistractors(pool, w.term, (x) => x.term, optN - 1, rand);
     out.push({ type: "cloze", sentence: w.example.replace(w.term, "____"), options: shuffled([w.term, ...distractors], rand), wordIndex: wi });
   }
   const needMc = 2 - clozeCount;
   const mcExtras = shuffled(words.map((_, i) => i).filter((i) => !mcUsed.has(i)), rand).slice(0, needMc);
   for (const wi of mcExtras) {
-    const distractors = shuffled(words.filter((_, j) => j !== wi).map((w) => w.meaning), rand).slice(0, 3);
-    out.push({ type: "mc", prompt: `「${words[wi]!.term}」的意思是？`, options: shuffled([words[wi]!.meaning, ...distractors], rand), wordIndex: wi });
+    const w = words[wi]!;
+    const distractors = pickDistractors(pool, w.meaning, (x) => x.meaning, optN - 1, rand);
+    out.push({ type: "mc", prompt: `「${w.term}」的意思是？`, options: shuffled([w.meaning, ...distractors], rand), wordIndex: wi });
   }
-  // 造句 ×1（完形式）：句型例句挖掉一个词块，四选一填入
+  // 造句 ×1：例句切词块（无标点）拼装还原
   const pIdx = Math.floor(rand() * unit.patterns.length);
   const pat = unit.patterns[pIdx]!;
-  const chunks = splitTiles(pat.example).filter((t) => t.length >= 2);
-  const blank = chunks[Math.floor(rand() * chunks.length)] ?? pat.example;
-  const distractors = shuffled(
-    unit.patterns.filter((_, pi) => pi !== pIdx).flatMap((p2) => splitTiles(p2.example)).filter((t) => t.length >= 2 && t !== blank),
-    rand,
-  ).slice(0, 3);
-  out.push({ type: "build", sentence: pat.example.replace(blank, "____"), blank, options: shuffled([blank, ...distractors], rand), hint: pat.exampleZh });
+  const tiles = shuffled(splitTiles(pat.example), rand);
+  out.push({ type: "build", tiles, hint: pat.exampleZh, sentence: pat.example });
   // 连线 ×1：4 对词↔义
   const pairs = shuffled(words.map((_, i) => i), rand).slice(0, 4);
   out.push({ type: "match", left: pairs.map((i) => words[i]!.term), right: shuffled(pairs.map((i) => words[i]!.meaning), rand), wordIndices: pairs });
@@ -285,8 +323,13 @@ export function checkExercise(challengeId: string, index: number, answer: unknow
       return { ok, correct: w.term, why: `完整句子：${w.example}（${w.exampleZh}）——「${w.term}」＝ ${w.meaning}` };
     }
     case "build": {
-      const ok = normEx(String(answer)) === normEx(ex.blank);
-      return { ok, correct: ex.blank, why: `完整句子：${ex.sentence.replace("____", ex.blank)}（${ex.hint}）` };
+      const ok = normEx((answer as string[]).join("")) === normEx(ex.sentence);
+      return { ok, correct: ex.sentence, why: `原句：${ex.sentence}（${ex.hint}）` };
+    }
+    case "listen": {
+      const w = unit.words[ex.wordIndex]!;
+      const ok = normEx(String(answer)) === normEx(w.term);
+      return { ok, correct: w.term, why: `读的是「${w.term}」＝ ${w.meaning}${w.reading ? `（${w.reading}）` : ""}` };
     }
     case "match": {
       const mapping = answer as number[];

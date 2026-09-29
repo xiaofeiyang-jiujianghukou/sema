@@ -3,6 +3,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { levelFor } from "../modules/auth/service.js";
 import { CHALLENGES, challengesForLang } from "../content/challenges.js";
 import type { ChallengeService } from "../modules/challenges/service.js";
 
@@ -38,13 +39,50 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  /** 混合练习题目（选择/判断/完形/造句/连线/跟读，答案不下发） */
+  // 用户水平 → 出题难度（零基础 4 选项/7 过关，入门 5/8，进阶 6/9 且干扰项来自全书）
+  const LEVEL_THRESHOLD: Record<string, number> = { zero: 7, basic: 8, pro: 9 };
+  const levelOf = async (userId: string, challengeId: string): Promise<{ level: "zero" | "basic" | "pro"; threshold: number }> => {
+    const lang = challengeId.startsWith("ja-") ? "ja" : challengeId.startsWith("ko-") ? "ko" : "en";
+    const u = await app.users.get(userId);
+    const level = u ? levelFor(u, lang) ?? "zero" : "zero";
+    return { level, threshold: LEVEL_THRESHOLD[level] ?? 7 };
+  };
+
+  /** 混合练习题目（选择/判断/完形/造句/连线/跟读/听音辨词，答案不下发） */
   app.get("/:id/exercises", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
     if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
     try {
-      return { exercises: app.challenges.exercises((req.params as { id: string }).id) };
+      const { level, threshold } = await levelOf(req.userId, (req.params as { id: string }).id);
+      return { exercises: app.challenges.exercises((req.params as { id: string }).id, level), threshold };
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : "出题失败" });
+    }
+  });
+
+  /** 听音辨词音频：TTS 合成单元词（按语言选音色，内存缓存） */
+  const audioCache = new Map<string, string>();
+  app.post("/:id/audio", { preHandler: (req, reply) => requireAuth(app, req, reply) }, async (req, reply) => {
+    if (!req.userId) return reply.code(401).send({ error: "TOKEN_INVALID" });
+    const parsed = z.object({ index: z.number().int().min(0).max(49) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
+    try {
+      const id = (req.params as { id: string }).id;
+      const cacheKey = `${id}:${parsed.data.index}`;
+      const cached = audioCache.get(cacheKey);
+      if (cached) return { audioBase64: cached };
+      const c = CHALLENGES.find((x) => x.id === id);
+      const word = c?.words?.[parsed.data.index];
+      if (!c || !word) return reply.code(400).send({ error: "词不存在" });
+      const speech = app.speechForLang(c.lang);
+      let buf = Buffer.alloc(0);
+      for await (const chunk of app.speech.tts.synthesize(word.text, { format: "mp3", ...(speech.speaker ? { speaker: speech.speaker } : {}) })) {
+        buf = Buffer.concat([buf, chunk]);
+      }
+      const audioBase64 = buf.toString("base64");
+      audioCache.set(cacheKey, audioBase64);
+      return { audioBase64 };
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : "合成失败" });
     }
   });
 
@@ -98,7 +136,8 @@ export async function challengeRoutes(app: FastifyInstance): Promise<void> {
     const parsed = z.object({ matched: z.number().int().min(0).max(10) }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "BAD_REQUEST" });
     try {
-      const res = await app.challenges.claimBeginner(req.userId, (req.params as { id: string }).id, parsed.data.matched, CHALLENGES);
+      const { threshold } = await levelOf(req.userId, (req.params as { id: string }).id);
+      const res = await app.challenges.claimBeginner(req.userId, (req.params as { id: string }).id, parsed.data.matched, CHALLENGES, threshold);
       const wallet = await app.wallets.getWallet(req.userId);
       return { ...res, balanceCredits: wallet.balanceCredits };
     } catch (err) {

@@ -255,7 +255,13 @@ export const api = {
       { method: "POST", token, body: JSON.stringify({ audioBase64, index }) },
     ),
   challengeExercises: (token: string, id: string) =>
-    request<{ exercises: import("./api.exercises").Exercise[] }>(`/v1/challenges/${id}/exercises`, { token }),
+    request<{ exercises: import("./api.exercises").Exercise[]; threshold: number }>(`/v1/challenges/${id}/exercises`, { token }),
+  challengeAudio: (token: string, id: string, index: number) =>
+    request<{ audioBase64: string }>(`/v1/challenges/${id}/audio`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ index }),
+    }),
   challengeCheck: (token: string, id: string, index: number, answer: unknown) =>
     request<{ ok: boolean; correct?: string; why?: string }>(`/v1/challenges/${id}/check`, {
       method: "POST",

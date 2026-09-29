@@ -4,5 +4,6 @@ export type Exercise =
   | { type: "mc"; prompt: string; options: string[]; wordIndex: number }
   | { type: "tf"; prompt: string; wordIndex: number; shown: string }
   | { type: "cloze"; sentence: string; options: string[]; wordIndex: number }
-  | { type: "build"; sentence: string; blank: string; options: string[]; hint: string }
+  | { type: "build"; tiles: string[]; hint: string; sentence: string }
+  | { type: "listen"; wordIndex: number; options: string[] }
   | { type: "match"; left: string[]; right: string[]; wordIndices: number[] };
